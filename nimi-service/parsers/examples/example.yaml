@@ -1,0 +1,31 @@
+# Example platform profile (never loaded from here: copy it to ../local/ and adapt it).
+# Format reference: nimi_service/profiles.py and the docs (Guides → Platform profiles).
+name: myplatform
+description: Example services logging with two common Java/logback layouts
+
+log_layouts:
+  # [2026-01-15 10:04:31+0000] [order-worker-deployment-7d9f8c6b5d-x2k4p] [worker-1] [ERROR] - com.example.shop.OrderPipeline
+  #  Charging order batch b-42 failed com.example.shop.PaymentException: provider timeout
+  - name: timestamp-first
+    header: '^\[\d{4}-\d{2}-\d{2}[ T][\d:.]+[^\]]*\]\s*\[(?P<pod>[^\]]+)\](?:.*?\[(?P<level>ERROR|WARN|WARNING|FATAL|CRITICAL)\]\s*-\s*(?P<logger>\S+))?'
+    message: next_lines           # the error text is on the following lines
+
+  # [ERROR] [2026-01-15 10:04:31+0000] [shop-api-deployment-7f8e9d0c1b-abcde] [checkout-3] com.example.shop.api.CheckoutController Payment failed for cart c-17 …
+  - name: level-first
+    header: '^\[(?P<level>ERROR|WARN|WARNING|FATAL|CRITICAL)\]\s*\[(?P<ts>\d{4}-\d{2}-\d{2}[^\]]*)\]\s*\[(?P<pod>[^\]]+)\](?:\s*\[[^\]]*\])*\s+(?P<logger>[\w$]+(?:\.[\w$]+)+)\s+(?P<message>.*)$'
+    message: same_line            # the error text follows the logger on the same line
+    # when: {sender: ["Shop API Errors"]}   # only if another platform's lines look the same
+    # priority: 50
+
+# Item names to mask in signatures, beyond the generic ones (tables, schemas, paths, host:port, quotes,
+# pod suffixes, object hashes). Matched text becomes <name>.
+subject_masks:
+  - '(?<=for order batch )[\w-]+'
+  - '(?<=for cart )[\w-]+'
+
+# Confirmed facts that help triage decide reuse / new / not applicable, shown only for matching messages.
+triage_notes:
+  - applies_to: {text_contains: ["Stock Sync Reminder"]}
+    note: >-
+      "Stock Sync Reminder" asks the warehouse team to confirm a manual stock sync; it reports no system
+      failure.

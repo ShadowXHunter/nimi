@@ -1,0 +1,74 @@
+# Documentation site for NIMI. The pages are plain Markdown in docs/ (readable as-is by people and agents);
+# MkDocs + Material only renders them as a website.
+#   pip install -r docs/requirements.txt
+#   mkdocs serve          # http://127.0.0.1:8000, live reload
+#   mkdocs build          # static site in site/ (host anywhere: GitHub Pages, nginx, a bucket)
+site_name: NIMI
+site_description: Notification & Incident Mitigation Intelligence — automated RCA for chat alerts
+docs_dir: docs
+site_dir: site
+strict: true
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      toggle: {icon: material/brightness-7, name: Dark mode}
+    - scheme: slate
+      toggle: {icon: material/brightness-4, name: Light mode}
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc: {permalink: true}
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: getting-started/installation.md
+      - Configuration: getting-started/configuration.md
+      - Google Chat access: getting-started/google-chat-access.md
+      - First run: getting-started/first-run.md
+  - Guides:
+      - Operating the service: guides/operating.md
+      - Running an RCA by hand: guides/manual-rca.md
+      - Messages that don't need an RCA: guides/skipping-messages.md
+      - Platform profiles: guides/platform-profiles.md
+      - Replies: guides/where-replies-go.md
+      - Feedback and reuse: guides/feedback-and-reuse.md
+      - Red flags: guides/red-flags.md
+      - When Claude is unavailable: guides/claude-availability.md
+      - Adding a project to analyze: guides/adding-a-project.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Data model: architecture/data-model.md
+      - Triage: architecture/triage.md
+      - The RCA skill: architecture/rca-skill.md
+      - Security model: architecture/security.md
+      - Messaging providers: architecture/providers.md
+  - Development:
+      - Developer setup: development/setup.md
+      - Schema changes: development/schema-changes.md
+      - Adding a provider: development/adding-a-provider.md
+      - Changing the skill: development/changing-the-skill.md
+      - Writing docs: development/docs.md
+  - Reference:
+      - CLI: reference/cli.md
+      - Settings: reference/settings.md
+      - Skill output contract: reference/output-contract.md
+      - Glossary: reference/glossary.md
+  - Roadmap: roadmap.md

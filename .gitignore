@@ -1,0 +1,25 @@
+# Secrets — never commit
+token.json
+client_secret.json
+*.env
+.env*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Deployment-specific content: your projects, platform profiles and private SQL (examples are committed)
+nimi-skill/.claude/skills/rca/projects/local/
+nimi-service/parsers/local/
+nimi-skill/db/local/
+
+# Docs build output and venv
+site/
+.venv-docs/

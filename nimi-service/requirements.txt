@@ -1,0 +1,8 @@
+google-api-python-client>=2.100
+google-auth>=2.20
+google-auth-oauthlib>=1.0
+psycopg[binary]>=3.1
+sqlalchemy>=2.0
+alembic>=1.13
+pytest>=7
+pyyaml>=6

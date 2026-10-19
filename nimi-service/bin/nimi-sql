@@ -1,0 +1,6 @@
+#!/bin/sh
+# Read-only SQL over NIMI's history for the /rca skill: nimi-sql "<one SQL statement>"
+# (see nimi_service/skill_sql.py). The guard hook allows exactly this file. RCA runs set NIMI_PYTHON and the
+# skill reader's connection settings; otherwise the service's .venv and env files are used.
+SERVICE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+PYTHONPATH="$SERVICE_DIR" exec "${NIMI_PYTHON:-$SERVICE_DIR/.venv/bin/python}" -m nimi_service.skill_sql "$@"

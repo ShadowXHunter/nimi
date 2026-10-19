@@ -1,0 +1,21 @@
+{
+  "_comment": "Your projects: absolute paths of local checkouts (the guard hook allows only these, plus the rca skill folder; `git -C` may only target them). Optional per project: display_name (how people know it), web_url (for code links; default: the checkout's `origin` remote), sync (\"<remote>/<branch>\": NIMI keeps this NIMI-only copy updated; it never touches checkouts with uncommitted changes or local commits). Describe each project in <name>.md and add it to INDEX.md.",
+  "projects": {
+    "shop": {
+      "description": "Example: an online shop backend (API, workers, scheduled jobs)",
+      "paths": [
+        "/absolute/path/to/shop"
+      ],
+      "default": true,
+      "display_name": "example/shop",
+      "web_url": "https://github.com/example/shop",
+      "sync": "origin/main"
+    },
+    "dashboards": {
+      "description": "Example: a BI / dashboarding tool that sends alerts about query results",
+      "paths": [
+        "/absolute/path/to/dashboards"
+      ]
+    }
+  }
+}

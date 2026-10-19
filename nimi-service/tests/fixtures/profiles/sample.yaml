@@ -1,0 +1,19 @@
+# Test-only profile (loaded by tests/conftest.py instead of parsers/local/).
+name: sample
+description: Layouts and masks used by the unit tests
+
+log_layouts:
+  - name: timestamp-first
+    header: '^\[\d{4}-\d{2}-\d{2}[ T][\d:.]+[^\]]*\]\s*\[(?P<pod>[^\]]+)\](?:.*?\[(?P<level>ERROR|WARN|WARNING|FATAL|CRITICAL)\]\s*-\s*(?P<logger>\S+))?'
+    message: next_lines
+  - name: level-first
+    header: '^\[(?P<level>ERROR|WARN|WARNING|FATAL|CRITICAL)\]\s*\[(?P<ts>\d{4}-\d{2}-\d{2}[^\]]*)\]\s*\[(?P<pod>[^\]]+)\](?:\s*\[[^\]]*\])*\s+(?P<logger>[\w$]+(?:\.[\w$]+)+)\s+(?P<message>.*)$'
+    message: same_line
+
+subject_masks:
+  - '(?<=warehouse: )[\w-]+'
+  - '(?<=tenant: )[^\s,]+'
+
+triage_notes:
+  - applies_to: {text_contains: ["Stock Sync Reminder"]}
+    note: "\"Stock Sync Reminder\" asks the warehouse team to confirm a manual sync; it reports no system failure."
