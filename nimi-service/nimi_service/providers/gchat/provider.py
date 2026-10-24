@@ -105,6 +105,8 @@ class GChatProvider(Provider):
         return "\n".join(out)
 
     def link(self, url: str, label=None) -> str:
+        # Chat drops the whole link when the label has formatting (e.g. `code`), and | < > break the markup.
+        label = re.sub(r"\s+", " ", re.sub(r"[`*~<>]", "", (label or "").replace("|", "/"))).strip()
         return f"<{url}|{label}>" if label else url
 
     def post_webhook(self, webhook_url: str, text: str, thread_key: str = None) -> tuple:

@@ -42,9 +42,10 @@ Related
 Rate it: 👍 correct · 🤔 partly right · 👎 wrong
 ```
 
-- **Reuse** (same ongoing incident as an earlier RCA): "Same as an earlier RCA" with, per earlier RCA, the
-  subjects it covers, a link to it (labelled by its title and time, never a database ID) and its TL;DR. **Partly reused** RCAs show the same lines under
-  "Already analyzed:".
+- **Reuse** (same ongoing incident as an earlier RCA): "Same as an earlier RCA" (or "Same as earlier RCAs" where there
+  are multiple) with, per earlier RCA, the subjects it covers, a link to it (labelled by its title and time, never a
+  database ID) and its TL;DR, dated ("TL;DR (Oct 19):") because its numbers are from that RCA, not from the new alert.
+  **Partly reused** RCAs show the same lines under "Already analyzed:".
 - **Related** lists up to 3 messages from the history (e.g. the error log in another channel that explains
   an alert) or earlier RCAs, linked to the original messages. The skill cites them by ID and NIMI makes the
   links, so only real bot messages and real RCAs become links

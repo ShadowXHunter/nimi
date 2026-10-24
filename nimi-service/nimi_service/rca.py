@@ -318,7 +318,9 @@ def _reuse_lines(provider, reused: list, reused_replies: dict, earlier: dict = N
         lines.append("- " + (f"`{shown}` → " if shown else "")
                      + (provider.link(provider.message_link(ref), label) if ref else label))
         if info.get("tldr"):
-            lines.append(f"  {provider.bold('TL;DR:')} {info['tldr']}")
+            when = info.get("created_at")
+            age = f" ({when.astimezone(timezone.utc):%b %d})" if when else ""   # its numbers are from then
+            lines.append(f"  {provider.bold(f'TL;DR{age}:')} {info['tldr']}")
     return lines
 
 
@@ -432,7 +434,9 @@ def format_rca(provider, report: str, reused: list, reused_replies: dict, max_ch
 def format_reuse(provider, reused: list, reused_replies: dict, max_chars: int, input_sensitive_types=(),
                  disclaimer_text: str = DEFAULT_DISCLAIMER, source: str = "", earlier: dict = None) -> str:
     """No new RCA: the alert is the same ongoing incident as earlier RCA(s)."""
-    head = [header(provider, provider.italic(disclaimer_text or DEFAULT_DISCLAIMER)), "", provider.bold("Same as an earlier RCA")] \
+    several = len({r["rca_id"] for r in reused}) > 1
+    head = [header(provider, provider.italic(disclaimer_text or DEFAULT_DISCLAIMER)), "",
+            provider.bold("Same as earlier RCAs" if several else "Same as an earlier RCA")] \
         + ([source] if source else [])
     head += [""] + sensitive_note(input_sensitive_types)
     body = "\n".join(_reuse_lines(provider, reused, reused_replies, earlier))

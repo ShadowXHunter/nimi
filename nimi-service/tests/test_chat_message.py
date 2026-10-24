@@ -156,13 +156,14 @@ def test_reuse_and_mixed_name_earlier_rcas_by_title_and_time_not_id():
     reuse = format_reuse(GCHAT, [{"subject": "orders", "rca_id": 12}], {12: "spaces/A/messages/T.R"}, 4000,
                          earlier=earlier)
     assert "• `orders` → <https://chat.google.com/room/A/T/R?cls=10|Warehouse API outage, Mar 03 14:20 UTC>" in reuse
-    assert "*TL;DR:* Warehouse API outage." in reuse and "#12" not in reuse
+    assert "*TL;DR (Mar 03):* Warehouse API outage." in reuse and "#12" not in reuse
+    assert "*Same as an earlier RCA*" in reuse
     whole = format_reuse(GCHAT, [{"subject": "*", "rca_id": 12}], {}, 4000, earlier=earlier)
     assert "• Warehouse API outage, Mar 03 14:20 UTC" in whole and "`*`" not in whole
     unposted = format_reuse(GCHAT, [{"subject": "orders", "rca_id": 12}], {}, 4000, earlier={})
     assert "• `orders` → earlier RCA" in unposted and "#12" not in unposted
     mixed = format_rca(GCHAT, REPORT, [{"subject": "order_items", "rca_id": 12}], {}, 4000, earlier=earlier)
-    assert "*Already analyzed:*" in mixed and "*TL;DR:* Warehouse API outage." in mixed
+    assert "*Already analyzed:*" in mixed and "*TL;DR (Mar 03):* Warehouse API outage." in mixed
     assert title_of(REPORT) == CHAT["title"]
     # TODO(old chat format): remove with the Markdown fallback in rca.title_of.
     assert title_of("RCA_CHAT\n**RCA: Old style title**\n\n**TL;DR:** x\nEND_RCA_CHAT\n") == "Old style title"
@@ -200,3 +201,15 @@ def test_id_only_link_labels_get_channel_and_time():
         assert "<https://chat.google.com/room/A/T/M?cls=10|app-logs, Mar 3 14:20 UTC>" in resolve_refs(GCHAT, text, links)
     descriptive = resolve_refs(GCHAT, "[payment timeout log, Mar 3](msg:1234)", links)
     assert "|payment timeout log, Mar 3>" in descriptive                       # good labels are kept
+
+
+def test_reuse_of_several_rcas_and_link_labels_with_markup():
+    from datetime import datetime, timezone
+    when = datetime(2026, 3, 3, 14, 20, tzinfo=timezone.utc)
+    earlier = {12: {"title": "Duplicate IDs in `orders` | <x>", "tldr": "a", "created_at": when},
+               13: {"title": "Order export delayed", "tldr": "b", "created_at": when}}
+    reuse = format_reuse(GCHAT, [{"subject": "orders", "rca_id": 12}, {"subject": "items", "rca_id": 13}],
+                         {12: "spaces/A/messages/T.R"}, 4000, earlier=earlier)
+    assert "*Same as earlier RCAs*" in reuse
+    # Chat drops a link whose label has formatting; | < > would break the <url|label> markup
+    assert "<https://chat.google.com/room/A/T/R?cls=10|Duplicate IDs in orders / x, Mar 03 14:20 UTC>" in reuse
