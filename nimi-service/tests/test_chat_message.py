@@ -120,7 +120,7 @@ def test_internal_chatter_is_removed_outside_related():
     text = format_rca(GCHAT, report_with(chat), [], {}, 4000)
     assert "corrects" not in text and "agrees" not in text and "*Cause* (confirmed)" in text
     assert "*TL;DR:* The orders table has no index. Fix the index." in text
-    assert "• RCA #3 — same cause" in text                                        # unverified: label only
+    assert "• earlier RCA — same cause" in text                         # unverified: label only, never the ID
 
 
 def test_related_entries_are_verified_and_linked():
@@ -182,7 +182,7 @@ def test_citations_become_links_only_when_verified():
     out = resolve_refs(GCHAT, text, {("msg", 1235): "https://chat.google.com/room/A/T/M?cls=10",
                                      ("rca", 12): "https://chat.google.com/room/A/T/R?cls=10"})
     assert "<https://chat.google.com/room/A/T/M?cls=10|503 log, 02:10 UTC>" in out
-    assert "<https://chat.google.com/room/A/T/R?cls=10|RCA #12>" in out
+    assert "<https://chat.google.com/room/A/T/R?cls=10|earlier RCA>" in out          # an ID label means nothing
     assert "made-up log" in out and "msg:999" not in out
     assert "evil.example" not in out and "phish" in out
 
@@ -213,3 +213,18 @@ def test_reuse_of_several_rcas_and_link_labels_with_markup():
     assert "*Same as earlier RCAs*" in reuse
     # Chat drops a link whose label has formatting; | < > would break the <url|label> markup
     assert "<https://chat.google.com/room/A/T/R?cls=10|Duplicate IDs in orders / x, Mar 03 14:20 UTC>" in reuse
+
+
+def test_a_sentence_citing_an_rca_keeps_its_fact_and_gets_the_rca_title():
+    from datetime import datetime, timezone
+    from nimi_service.rca import earlier_label
+    chat = {**CHAT, "cause": {"certainty": "likely", "points": [
+        "The export was retried twice. [RCA #12](rca:12) found 40 identical errors since May 2. "
+        "This agrees with RCA #12."]}}
+    when = datetime(2026, 3, 3, 14, 20, tzinfo=timezone.utc)
+    links = {("rca", 12): "https://chat.google.com/room/A/T/R?cls=10",
+             ("rca-label", 12): earlier_label({"title": "Order export file missing", "created_at": when})}
+    text = format_rca(GCHAT, report_with(chat), [], {}, 4000, links=links)
+    assert ("<https://chat.google.com/room/A/T/R?cls=10|Order export file missing, Mar 03 14:20 UTC> found 40 "
+            "identical errors since May 2.") in text
+    assert "agrees" not in text                                                   # bare mention: still removed

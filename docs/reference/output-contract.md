@@ -39,10 +39,12 @@ END_RCA_CHAT
   Do NOT, Permanent fixes, Also, Related as headings with bullets or numbered steps; each step starts with
   where it runs; commands as code blocks; possible results as sub-bullets under their step). The optional
   `context` line goes under the status line. The provider then converts the markup.
-- Markdown headings inside values are removed, and sentences about earlier RCAs are removed everywhere
-  except Related.
+- Markdown headings inside values are removed, and sentences that mention an earlier RCA without citing it
+  ("this agrees with RCA #2") are removed everywhere except Related. A sentence that cites one
+  (`[RCA #12](rca:12)`) is kept; a citation labelled only by its ID is relabelled with that RCA's title and time.
 - Values are plain text with `` `code` `` and citations only. A single text where a list is expected is
-  treated as a one-item list; unknown keys are ignored.
+  treated as a one-item list. Unknown keys (e.g. `dont`, `permanent_fixes`) and `related` entries that aren't
+  objects are ignored, and raise a low red flag.
 - **Length:** the skill keeps the whole message under ~2,500 characters by editing (summarising, merging,
   leaving out the least useful items). NIMI never trims text. Only if a message still can't fit
   `NIMI_POST_MAX_CHARS`, whole sections are left out (Related, then Also, Permanent fixes, Steps to verify)

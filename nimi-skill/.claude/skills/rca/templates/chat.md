@@ -28,6 +28,8 @@ layout inside a value.
 }
 ```
 
+- Use exactly these keys and shapes. NIMI ignores any other key, and `related` entries written as plain text,
+  so that content never reaches on-call.
 - `title`, `tldr` and `cause` are required. Leave out (or leave empty) any other key that doesn't apply: no
   `do_not` if nothing tempting is harmful, no `verify` if there is nothing useful to check.
 - `title`: no "RCA:" prefix (NIMI adds it), at most ~100 characters.

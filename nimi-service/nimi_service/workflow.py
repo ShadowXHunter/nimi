@@ -12,8 +12,8 @@ from .claude_cli import NEEDS_ADMIN, ClaudeUnavailable
 from .guardlog import denials_for_session
 from .parse import looks_resolved
 from .providers import get_provider
-from .rca import (SOURCE_LINE_MAX, find_refs, format_limit_notice, format_rca, format_reuse, run_rca, source_line,
-                  with_source)
+from .rca import (SOURCE_LINE_MAX, earlier_label, find_refs, format_limit_notice, format_rca, format_reuse, run_rca,
+                  source_line, with_source)
 from .triage import triage
 
 log = logging.getLogger(__name__)
@@ -303,6 +303,8 @@ def citation_links(s, provider, report: str, dest: str) -> dict:
         links[("msg-label", mid)] = f"{channel}, {created.astimezone(timezone.utc):%b %d %H:%M} UTC"
     posts = {**db.reply_ids_for_results(s, rca_ids, "thread"), **db.reply_ids_for_results(s, rca_ids, dest)}
     links.update({("rca", rid): provider.message_link(ext) for rid, ext in posts.items() if ext})
+    # readable link text if the skill used the ID as the label: the RCA's title and time, as in reuse replies
+    links.update({("rca-label", rid): earlier_label(info) for rid, info in db.earlier_rcas(s, rca_ids).items()})
     return links
 
 

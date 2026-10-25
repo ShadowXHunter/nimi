@@ -243,6 +243,7 @@ REF_RE = re.compile(r"\[([^\]\n]{1,100})\]\((msg|rca):(\d{1,12})\)")
 CODE_REF_RE = re.compile(r"\[([^\]\n]{1,100})\]\(code:([a-z0-9][a-z0-9_-]{0,40})@([0-9a-f]{7,40})/([^)#\s]{1,400})"
                          r"(?:#L(\d{1,7})(?:-L?(\d{1,7}))?)?\)")
 ID_LABEL_RE = re.compile(r"(?:msg|message|log|alert)?\s*(?:id\s*)?#?\s*\d+", re.I)
+RCA_ID_LABEL_RE = re.compile(r"(?:the\s+)?(?:earlier\s+)?rca\s*(?:id\s*)?#?\s*\d+", re.I)
 URL_LINK_RE = re.compile(r"\[([^\]\n]{1,100})\]\((?:https?|ftp)://[^)\s]*\)")
 
 
@@ -257,7 +258,7 @@ def find_refs(text: str) -> tuple:
 
 def resolve_refs(provider, text: str, links: dict, code_bases: dict = None) -> str:
     """Citations -> provider links for verified ones ({("msg"|"rca", id): url}; code: {project: web url});
-    unknown ones -> their label. Markdown links to URLs are reduced to their label."""
+    unknown ones -> their label. Labels that are only an ID use ("msg-label"|"rca-label", id) from `links`. Markdown links to URLs are reduced to their label."""
     from .projects import code_url
 
     def repl(m):
@@ -265,6 +266,8 @@ def resolve_refs(provider, text: str, links: dict, code_bases: dict = None) -> s
         url = (links or {}).get((kind, num))
         if kind == "msg" and ID_LABEL_RE.fullmatch(label.strip()):     # "msg 1234": an ID means nothing to readers
             label = (links or {}).get(("msg-label", num)) or "message"
+        if kind == "rca" and RCA_ID_LABEL_RE.fullmatch(label.strip()):  # "RCA #39": its title and time instead
+            label = (links or {}).get(("rca-label", num)) or "earlier RCA"
         return provider.link(url, label) if url else label
 
     def code_repl(m):
@@ -294,7 +297,7 @@ def _fallback_body(report: str) -> tuple:
     return (tm.group(1).strip() if tm else "RCA"), body + "\n\n_(Short message unavailable: this is the report's summary.)_"
 
 
-def _earlier_label(info: dict) -> str:
+def earlier_label(info: dict) -> str:
     """How an earlier RCA is named in replies: its title and time, never its database ID."""
     title = (info or {}).get("title") or "earlier RCA"
     if len(title) > 70:
@@ -314,7 +317,7 @@ def _reuse_lines(provider, reused: list, reused_replies: dict, earlier: dict = N
         named = [x for x in subjects if x != "*"]          # "*" = the whole message, not a subject to show
         shown = ", ".join(named[:5]) + (f" and {len(named) - 5} more" if len(named) > 5 else "")
         info = (earlier or {}).get(rca_id) or {}
-        label, ref = _earlier_label(info), reused_replies.get(rca_id)
+        label, ref = earlier_label(info), reused_replies.get(rca_id)
         lines.append("- " + (f"`{shown}` → " if shown else "")
                      + (provider.link(provider.message_link(ref), label) if ref else label))
         if info.get("tldr"):

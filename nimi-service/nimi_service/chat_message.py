@@ -33,7 +33,10 @@ CERTAINTY_LABEL = {"confirmed": "confirmed", "likely": "likely, to be confirmed"
 REF_RE = re.compile(r"^(msg|rca):(\d{1,12})$")
 HEADING_LINE_RE = re.compile(r"^\s*#{1,6}\s+\S.*$", re.M)
 # Sentences about earlier RCAs ("This agrees with RCA #2."): on-call needs the finding, not NIMI's history.
+# Only bare mentions: a sentence that cites an RCA ([RCA #39](rca:39)) carries a fact and keeps it; NIMI
+# relabels the citation with that RCA's title and time.
 INTERNAL_SENTENCE_RE = re.compile(r"[^.!?\n]*\bRCA\s*#\s*\d+[^.!?\n]*(?:[.!?](?=\s|$)|$)", re.I)
+CITATION_RE = re.compile(r"\[[^\]\n]{1,100}\]\((?:msg|rca):\d{1,12}\)")
 
 # Sections in display order; the ones NIMI may drop (whole) when a message can't fit the chat limit, in order.
 OPTIONAL_DROP_ORDER = ("related", "also", "fixes", "verify")
@@ -72,7 +75,9 @@ def _text(value, problems: list, where: str, keep_refs: bool = False) -> str:
         return ""
     text = HEADING_LINE_RE.sub("", value)
     if not keep_refs:
-        text = INTERNAL_SENTENCE_RE.sub("", text)
+        cited = CITATION_RE.findall(text)       # hidden while matching, so "RCA #N" inside one doesn't count
+        text = CITATION_RE.sub(lambda m, n=iter(range(len(cited))): f"\x00{next(n)}\x00", text)
+        text = re.sub(r"\x00(\d+)\x00", lambda m: cited[int(m.group(1))], INTERNAL_SENTENCE_RE.sub("", text))
     return " ".join(text.split())
 
 

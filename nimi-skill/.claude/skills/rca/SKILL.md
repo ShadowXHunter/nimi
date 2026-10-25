@@ -155,7 +155,7 @@ Do not suggest a fix that only hides upstream junk (e.g. making NULL keys merge 
 Stop investigating when the cause is confirmed with direct evidence, **or** ~5 hypotheses have been ruled out, **or** the evidence points outside the allowed sources. Then write the report using `${CLAUDE_SKILL_DIR}/templates/report.md`.
 
 ### 12. Write the chat message
-Read `${CLAUDE_SKILL_DIR}/templates/chat.md` and write the one message on-call will see in chat (the `RCA_CHAT` block, see the output contract): **JSON with the fixed keys** from the template — title, TL;DR, cause, read-only steps to verify it, what to do now, what not to do, permanent fixes by owner, other suggestions (missing runbooks/docs, monitoring or alerts to add), related messages. You write only the content, in simple words and within the template's length budget; NIMI builds the layout. The full report is stored separately, so the message must stand on its own.
+Read `${CLAUDE_SKILL_DIR}/templates/chat.md` and write the one message on-call will see in chat (the `RCA_CHAT` block, see the output contract): **one JSON object with exactly these keys**, spelled as written and shaped as in the template: `title`, `context`, `tldr`, `cause` (an object: `certainty`, `points`), `verify` (objects: `where`, `text`, `command`, `outcomes`), `now`, `do_not`, `fixes` (objects: `owner`, `items`), `also`, `related` (objects: `ref`, `label`, `why`). NIMI reads only these keys: any other key (e.g. `dont`, `do_now`, `permanent_fixes`, `other`) is dropped and its content never reaches on-call. You write only the content, in simple words and within the template's length budget; NIMI builds the layout. The full report is stored separately, so the message must stand on its own.
 
 ## Confidence
 
@@ -170,7 +170,7 @@ After the report (and after the Confidence section), write the chat message betw
 
 ```
 RCA_CHAT
-<the chat message: one JSON object with the keys in templates/chat.md>
+<the chat message: one JSON object with only these keys: title, context, tldr, cause, verify, now, do_not, fixes, also, related>
 END_RCA_CHAT
 ```
 
