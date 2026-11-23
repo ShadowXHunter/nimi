@@ -3,7 +3,7 @@ requests. Provider specifics live in nimi_service/providers/."""
 import logging
 from datetime import datetime, timedelta, timezone
 
-from . import db, exclusions, redflags
+from . import comments, db, exclusions, redflags
 from .models import Channel, Message as MessageRow, ThreadMessage
 from .parse import PARSER_VERSION, parse_message
 from .providers import Message, get_provider
@@ -48,19 +48,24 @@ def should_request_rca(settings, channel: Channel, row: dict, now: datetime):
     return "triage", None
 
 
-def _store(s, settings, channel, msg: Message, is_backfill: bool, open_requests: bool, now, counts) -> None:
+def _store(s, settings, provider, channel, msg: Message, is_backfill: bool, open_requests: bool, now,
+           counts) -> None:
     row = message_row(msg, channel, is_backfill)
     if msg.is_thread_reply:
         change, _ = db.upsert_message(s, ThreadMessage, row)
         if change:
             counts["thread_new" if change == "inserted" else "updated"] += 1
+            _sync_comment(s, settings, provider, channel, msg, counts)
         else:
             counts["unchanged"] += 1
         return
     change, message_id = db.upsert_message(s, MessageRow, row)
     if change != "inserted":
         counts["updated" if change == "updated" else "unchanged"] += 1
+        if change == "updated":
+            _sync_comment(s, settings, provider, channel, msg, counts)
         return
+    _sync_comment(s, settings, provider, channel, msg, counts)   # a top-level comment: stored unattached
     counts["main_new"] += 1
     parsed, sig_id = store_parse(s, message_id, msg)
     if open_requests:
@@ -82,6 +87,12 @@ def _store(s, settings, channel, msg: Message, is_backfill: bool, open_requests:
             counts["requests"] += rid is not None
 
 
+def _sync_comment(s, settings, provider, channel, msg: Message, counts) -> None:
+    """A new or edited message may be (or stop being) a `!nimi` comment. Bot messages never are."""
+    if msg.sender_type == "human" and comments.sync_message(s, settings, provider, msg, channel.id):
+        counts["comments"] += 1
+
+
 def _is_own_post(s, settings, channel, msg: Message) -> bool:
     from .rca import looks_like_nimi_post
     return db.is_nimi_post(s, msg.external_id) or \
@@ -95,12 +106,13 @@ def ingest_channel(settings, provider, channel: Channel, backfill_days=None) -> 
     since = (now - timedelta(days=backfill_days or channel.backfill_days)) if is_backfill \
         else channel.watermark - timedelta(seconds=settings.overlap_seconds)
 
-    counts = {"main_new": 0, "thread_new": 0, "updated": 0, "unchanged": 0, "requests": 0, "excluded": 0}
+    counts = {"main_new": 0, "thread_new": 0, "updated": 0, "unchanged": 0, "requests": 0, "excluded": 0,
+              "comments": 0}
     newest = None
     with db.session() as s:
         for msg in provider.iter_messages(channel.external_id, since):
             newest = max(newest, msg.created_at) if newest else msg.created_at
-            _store(s, settings, channel, msg, is_backfill, open_requests=True, now=now, counts=counts)
+            _store(s, settings, provider, channel, msg, is_backfill, open_requests=True, now=now, counts=counts)
         if newest:
             db.set_watermark(s, channel.id, newest)
     return counts
@@ -118,12 +130,13 @@ def backfill_channel(settings, provider, channel: Channel, days: int) -> dict:
         return ingest_channel(settings, provider, channel, backfill_days=days)
     now = datetime.now(timezone.utc)
     start, end = now - timedelta(days=days), channel.watermark
-    counts = {"main_new": 0, "thread_new": 0, "updated": 0, "unchanged": 0, "requests": 0, "excluded": 0}
+    counts = {"main_new": 0, "thread_new": 0, "updated": 0, "unchanged": 0, "requests": 0, "excluded": 0,
+              "comments": 0}
     if start >= end:
         return counts
     with db.session() as s:
         for msg in provider.iter_messages(channel.external_id, start, end):
-            _store(s, settings, channel, msg, True, open_requests=False, now=now, counts=counts)
+            _store(s, settings, provider, channel, msg, True, open_requests=False, now=now, counts=counts)
     return counts
 
 

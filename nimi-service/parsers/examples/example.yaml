@@ -29,3 +29,12 @@ triage_notes:
     note: >-
       "Stock Sync Reminder" asks the warehouse team to confirm a manual stock sync; it reports no system
       failure.
+
+# Facts about one sender's messages (their layout, what a field means), given to the RCA and to triage for the
+# messages they apply to. Scope each note by sender and/or text: other senders may lay out the same alerts
+# differently.
+message_notes:
+  - applies_to: {sender: ["Ops Notifier"]}
+    note: >-
+      Alerts from this notifier end with one block per matched series: the series in bold (a disk, queue or
+      host), then its current value on the next line.

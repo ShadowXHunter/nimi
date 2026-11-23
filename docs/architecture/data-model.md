@@ -32,6 +32,9 @@ migrations (`nimi-service/db/migrations/`). Rows use internal numeric IDs; provi
 | `rca_posts` | Messages posted (kind `rca` / `reuse` / `mixed` / `not_applicable` / `notice`), their **destination** (`thread` or `webhook`) and chat IDs. |
 | `rca_post_reuse_links` | Which earlier results a reuse reply pointed to. |
 | `rca_feedback` | Verdicts from reactions (`correct` / `partial` / `wrong`), soft-deleted when a reaction is removed. |
+| `rca_comments` | [Comments](../guides/comments.md) people wrote with `!nimi` or the CLI: source (`chat` / `cli`), chat message and thread, request and signature (null while unattached), author, text (trigger removed, secrets masked, capped), flags, created / updated / removed times. |
+| `rca_comment_results` | The RCA results a comment is about (several when its post showed several RCAs). An RCA with an active comment is never reused. |
+| `rca_comment_verdicts` | What a later RCA concluded about a comment: `confirmed` / `contradicted` / `unverifiable` / `not_applicable`, evidence, `relied_on`, `downgraded` (a `confirmed` whose evidence didn't check out). |
 | `rca_exclusions` | [Exclusion rules](../guides/skipping-messages.md): match fields, reason, expiry, hit counts. |
 
 ### Operations
@@ -47,8 +50,9 @@ migrations (`nimi-service/db/migrations/`). Rows use internal numeric IDs; provi
 |---|---|---|
 | `signature_stats` | service / humans | Occurrences, first and last seen per signature. |
 | `rca_feedback_summary` | service / humans | Current feedback counts per result. |
-| `skill_messages` | the skill (`nimi_skill_reader`) | Top-level **bot** messages from all channels with their parse and signature. No thread replies, human messages or raw payloads. |
+| `skill_messages` | the skill (`nimi_skill_reader`) | Top-level **bot** messages from all channels with their parse and signature. No thread replies, human messages, raw payloads or NIMI's own posts. |
 | `skill_rcas` | the skill (`nimi_skill_reader`), development reviews (`nimi_readonly`) | Previous RCAs (outcomes `rca`, `not_applicable`, `insufficient_context`) with source message details, subjects and feedback counts. |
+| `skill_comments` | the skill (`nimi_skill_reader`), development reviews (`nimi_readonly`) | Active comments with their request, signature key, result IDs, time and text. No author names or IDs. |
 | `review_messages` | development reviews (`nimi_readonly`) | Bot messages, top-level **and** thread replies. |
 
 The skill and review views use `security_barrier` so their filters apply before any caller condition.
@@ -58,7 +62,7 @@ The skill and review views use `security_barrier` so their filters apply before 
 | Role (default) | Used by | Access |
 |---|---|---|
 | `nimi_service` | the service | Owns the database and schema: read/write; the only role that can create objects. |
-| `nimi_skill_reader` | the skill, via `nimi-sql` | `SELECT` on `skill_messages` and `skill_rcas` only. Read-only sessions, 5s statement timeout, 5 connections. Granted by `db upgrade`. |
-| `nimi_readonly` | development reviews (optional, `dev/review_access.sh`) | `SELECT` on `review_messages` and `skill_rcas` only. Read-only, 30s timeout, 3 connections. |
+| `nimi_skill_reader` | the skill, via `nimi-sql` | `SELECT` on `skill_messages`, `skill_rcas` and `skill_comments` only. Read-only sessions, 5s statement timeout, 5 connections. Granted by `db upgrade`. |
+| `nimi_readonly` | development reviews (optional, `dev/review_access.sh`) | `SELECT` on `review_messages`, `skill_rcas` and `skill_comments` only. Read-only, 30s timeout, 3 connections. |
 
 The triage model has no database access: the service puts what it needs into the prompt.

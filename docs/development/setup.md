@@ -70,7 +70,7 @@ docker rm -f nimi-test-db
 To let someone (or an agent) review stored messages without the service's read-write credentials:
 
 ```bash
-bash dev/review_access.sh            # creates nimi_readonly: SELECT on review_messages and skill_rcas only; password in ~/.pgpass
+bash dev/review_access.sh            # creates nimi_readonly: SELECT on review_messages, skill_rcas and skill_comments only; password in ~/.pgpass
 bash dev/review_access.sh revoke     # removes it
 ```
 

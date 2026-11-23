@@ -36,7 +36,7 @@ HEADING_LINE_RE = re.compile(r"^\s*#{1,6}\s+\S.*$", re.M)
 # Only bare mentions: a sentence that cites an RCA ([RCA #39](rca:39)) carries a fact and keeps it; NIMI
 # relabels the citation with that RCA's title and time.
 INTERNAL_SENTENCE_RE = re.compile(r"[^.!?\n]*\bRCA\s*#\s*\d+[^.!?\n]*(?:[.!?](?=\s|$)|$)", re.I)
-CITATION_RE = re.compile(r"\[[^\]\n]{1,100}\]\((?:msg|rca):\d{1,12}\)")
+CITATION_RE = re.compile(r"\[[^\]\n]{1,100}\]\((?:msg|rca|comment):\d{1,12}\)")
 
 # Sections in display order; the ones NIMI may drop (whole) when a message can't fit the chat limit, in order.
 OPTIONAL_DROP_ORDER = ("related", "also", "fixes", "verify")

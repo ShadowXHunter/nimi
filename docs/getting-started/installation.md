@@ -103,7 +103,7 @@ cd nimi-service
 .venv/bin/python -m nimi_service db upgrade
 ```
 
-This creates all tables and views and grants the skill reader access to its two views. Re-run it after
+This creates all tables and views and grants the skill reader access to its three views. Re-run it after
 pulling changes that include migrations.
 
 ## 6. Check the configuration

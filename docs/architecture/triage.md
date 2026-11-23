@@ -9,7 +9,8 @@ call makes the judgement, and code sets the limits and checks the answer.
 - **history**: the 10 most recent earlier messages with the same signature within the reuse window, with
   their parsed status;
 - **platform notes**: confirmed facts from the [platform profiles](../guides/platform-profiles.md) whose
-  `applies_to` matches the message (trusted guidance, unlike the message data);
+  `applies_to` matches the message: triage notes (matched by text) and message notes (matched by sender
+  and/or text). Trusted guidance, unlike the message data;
 - **candidates**: earlier RCAs for the same signature from the last `NIMI_REUSE_DAYS` (7) days, never ones
   rated 👎 and never the request's own earlier results (so a re-run doesn't just return its old answer),
   each with its input, analyzed subjects, a report excerpt and feedback.

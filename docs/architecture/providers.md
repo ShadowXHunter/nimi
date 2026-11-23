@@ -9,6 +9,7 @@ interface in `providers/base.py`:
 | `iter_messages(channel, after, before)` | List messages: top-level and thread replies. |
 | `list_reactions(message)` | Individual reactions on a message. |
 | `post_reply(channel, thread, text)` | Reply in a thread. |
+| `comment_text(message)` | The comment a person addressed to NIMI (`!nimi` outside code), or none. Default in `base.py`, from `body_text`; override only if the platform needs a different trigger. |
 | `message_link(message)`, `bold(text)`, `link(url)` | Links and markup for replies. |
 | `normalize_channel_id(value)` | Canonical channel ID from user input. |
 
@@ -20,7 +21,11 @@ see [Adding a provider](../development/adding-a-provider.md).
 - **Auth:** user OAuth token (created once by `gchat-login`, refreshed automatically; see
   [Google Chat access](../getting-started/google-chat-access.md)); the service reads and posts as that user. Scopes: `chat.spaces.readonly`, `chat.messages.readonly`, `chat.messages.create`.
 - **Messages:** top-level messages and thread replies are told apart by the thread; sender `type` `BOT` /
-  `HUMAN` becomes `bot` / `human`. Cards are rendered into `rendered_text`.
+  `HUMAN` becomes `bot` / `human`. Cards are rendered faithfully into `rendered_text`: bold stays `**bold**`,
+  and a `keyValue` widget (a label and its value, by the card schema) becomes `label: value`. NIMI doesn't
+  guess what a sender's layout means; a deployment states that per sender in its profiles'
+  [message notes](../guides/platform-profiles.md). Parsing reads plain text without these markers, so
+  signatures don't change.
 - **Links:** `https://chat.google.com/room/<space>/<thread>/<message>?cls=10`.
 
 ### API limits

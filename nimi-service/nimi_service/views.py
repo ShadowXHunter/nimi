@@ -30,8 +30,10 @@ VIEWS = {
         GROUP BY result_id""",
 
     # Read by the RCA skill (via nimi-sql, as the skill reader role): top-level messages from bots, any channel and kind
-    # (alerts, error logs, ...). No thread replies, no human messages, no raw payloads.
-    # security_barrier: the bot filter is applied before any caller-supplied conditions.
+    # (alerts, error logs, ...). No thread replies, no human messages, no raw payloads, and never NIMI's own posts
+    # (e.g. a webhook post into a registered space: by its rca_posts row or its NIMI header line), so the skill
+    # can't cite an earlier, unverified RCA as independent evidence.
+    # security_barrier: the filters are applied before any caller-supplied conditions.
     "skill_messages": """
         CREATE VIEW skill_messages WITH (security_barrier) AS
         SELECT m.id AS message_id, m.provider, m.external_id, c.label AS channel_label, m.thread_external_id,
@@ -41,7 +43,9 @@ VIEWS = {
         JOIN channels c ON c.id = m.channel_id
         LEFT JOIN message_parses p ON p.message_id = m.id
         LEFT JOIN signatures sig ON sig.id = p.signature_id
-        WHERE m.sender_type = 'bot'""",
+        WHERE m.sender_type = 'bot'
+          AND NOT EXISTS (SELECT 1 FROM rca_posts rp WHERE rp.reply_external_id = m.external_id)
+          AND m.rendered_text NOT LIKE E'%\\n  \U0001F441\uFE0F *NIMI* %'""",
 
     # Read by the RCA skill: previous RCAs with their structured fields and feedback counts (no user names,
     # no reaction details, no raw input text). Source message details only for bot-sent messages.
@@ -65,6 +69,18 @@ VIEWS = {
         LEFT JOIN rca_feedback_summary fs ON fs.result_id = res.id
         WHERE res.outcome IN ('rca', 'not_applicable', 'insufficient_context')""",
 
+    # Read by the RCA skill: people's comments on earlier RCAs (unverified claims). Attached, not removed comments
+    # only; no author names or IDs, no chat message IDs.
+    "skill_comments": """
+        CREATE VIEW skill_comments WITH (security_barrier) AS
+        SELECT cm.id AS comment_id, cm.created_at, cm.request_id, sig.signature_key,
+               ARRAY(SELECT cr.result_id FROM rca_comment_results cr WHERE cr.comment_id = cm.id
+                     ORDER BY cr.result_id) AS result_ids,
+               cm.text
+        FROM rca_comments cm
+        LEFT JOIN signatures sig ON sig.id = cm.signature_id
+        WHERE cm.removed_at IS NULL AND cm.request_id IS NOT NULL""",
+
     # Read during development reviews (role created by dev/review_access.sh): bot messages only, top-level
     # AND thread replies. No human messages, raw payloads or workflow data.
     "review_messages": """
@@ -86,7 +102,7 @@ VIEWS = {
         WHERE t.sender_type = 'bot'""",
 }
 
-SKILL_VIEWS = ("skill_messages", "skill_rcas")
+SKILL_VIEWS = ("skill_messages", "skill_rcas", "skill_comments")
 
 
 def grant_skill_access(conn, role: str) -> bool:

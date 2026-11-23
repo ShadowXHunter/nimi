@@ -115,7 +115,9 @@ def build_prompt(request: dict, history: list, candidates: list) -> str:
         f"input:\n{_trim(c['input_text'], 6000)}\n\nreport excerpt:\n{_trim(c['report'], 1500)}\n</rca>"
         for c in candidates) or "(none)"
     created = request.get("message_created_at") or request["requested_at"]
-    notes = "\n".join(f"- {n}" for n in profiles.get().notes_for(request["input_text"])) or "(none)"
+    prof = profiles.get()
+    notes = "\n".join(f"- {n}" for n in prof.notes_for(request["input_text"])
+                      + prof.message_notes_for(request["input_text"], request.get("sender_display_name"))) or "(none)"
     return PROMPT.format(created_at=created.isoformat(), new_message=_trim(request["input_text"], 6000),
                          history=hist, candidates=cands, platform_notes=notes)
 

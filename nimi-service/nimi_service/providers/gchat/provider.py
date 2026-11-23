@@ -67,6 +67,7 @@ class GChatProvider(Provider):
             reaction_summary=reaction_summary(raw.get("emojiReactionSummaries")),
             parse_text="\n".join([text, *cards]),
             title_hint=first_line(text) or first_line("\n".join(cards)),
+            body_text=text,
         )
 
     def iter_messages(self, channel_external_id: str, after: datetime,

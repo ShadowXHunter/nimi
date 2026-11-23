@@ -12,7 +12,7 @@ layout inside a value.
 ```json
 {
   "title": "what is failing, where — one short line",
-  "context": "one line: the main subject(s) and the environment or owner, e.g. `orders` | load job: order-loader, prod",
+  "context": "one short line, not a sentence: the main subject(s) | the environment or owner, e.g. `orders` | load job: order-loader, prod",
   "tldr": "2–3 short sentences: what is happening, the likely cause, whether it fixes itself, the one thing to do",
   "cause": {"certainty": "confirmed | likely",
             "points": ["the cause and the key facts that support it, one point per fact"]},
@@ -33,15 +33,27 @@ layout inside a value.
 - `title`, `tldr` and `cause` are required. Leave out (or leave empty) any other key that doesn't apply: no
   `do_not` if nothing tempting is harmful, no `verify` if there is nothing useful to check.
 - `title`: no "RCA:" prefix (NIMI adds it), at most ~100 characters.
-- `cause.certainty`: `confirmed` only with direct evidence; otherwise `likely`.
-- `verify`: one entry per step, each with its own `where`, because checks often span systems (a DB query,
+- `context`: at most ~80 characters, `<subject> | <environment or owner>`. Times, values and the story go in
+  `tldr` and `cause`, not here.
+- `cause.certainty`: exactly `confirmed` or `likely`, nothing else (not `possible`, `unknown`, `hypothesis`). `confirmed`
+  only with direct evidence; otherwise `likely`, even for a weak guess: say how weak in the points. A person's comment is not direct
+  evidence: if a cause point comes from a comment you couldn't verify, say so in that point ("per
+  [a comment](comment:<id>), not verified"). Attribute a comment by citing it, never by an RCA number. A comment
+  you set aside (not relied on) never appears in the message: not in `also`, not as a rebuttal in `cause`, not
+  in `tldr`.
+- `verify`: one entry per step, each with its own `where` (`null` only when it's obvious), because checks often span systems (a DB query,
   a Loki query in Grafana, a `kubectl` command). Give the command or query exactly, in `command`. When the
   result decides what to do next, list each possible result in `outcomes` ("identical rows → ingested twice");
   NIMI shows them under the step.
+  `command` is the exact command or `null`, never `""`; `outcomes` is always a list, even with one item.
 - `do_not` items are the action itself, because NIMI shows them under "Do NOT": write "Restart the worker for
   this alone: …", not "Do not restart …".
 - `related`: at most 3 messages or earlier RCAs from the history that clearly support the cause. This is the
-  only place for earlier RCAs.
+  only place for earlier RCAs. Never list the alert itself or its own OK message just as "the alert being analyzed";
+  an OK goes here only when it supports the cause. An earlier RCA is never the support for a point ("no code change, per RCA #N"):
+  state only what you checked yourself.
+- **Several subjects:** keep each one's points, steps and fixes to that subject. What a comment says about one
+  subject (its cause, a fix, an action like "restored from backup") never appears under another subject or as a general fix.
 - Every value is plain text. Inside text you may use `` `code` `` and citations (below); nothing else.
 
 ## Length budget

@@ -307,6 +307,80 @@ class RcaFeedback(Base):
 
 
 # ============================================================================
+# 3a. Comments — what people wrote to NIMI about an RCA (`!nimi` in chat, or the CLI). See docs/design/comments.md.
+# ============================================================================
+
+COMMENT_SOURCES = ("chat", "cli")
+COMMENT_VERDICTS = ("confirmed", "contradicted", "unverifiable", "not_applicable")
+
+
+class RcaComment(Base):
+    """A person's comment on an RCA: a correction, the real cause, or more context. Stored with the trigger removed
+    and secrets masked. A comment never starts work; an RCA with an active comment is no longer reused, and the
+    next RCA of the alert gets the comment as an unverified claim. request_id / signature_id are NULL while the
+    comment is unattached (written where NIMI couldn't tell which RCA it is about)."""
+    __tablename__ = "rca_comments"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)                      # chat | cli
+    provider: Mapped[Optional[str]] = mapped_column(Text)                          # chat comments only
+    message_external_id: Mapped[Optional[str]] = mapped_column(Text)               # the chat message
+    channel_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("channels.id"))   # if registered
+    thread_external_id: Mapped[Optional[str]] = mapped_column(Text)
+    request_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("rca_requests.id"))
+    signature_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("signatures.id"))
+    author_external_id: Mapped[Optional[str]] = mapped_column(Text)                # chat user, or OS user (cli)
+    author_display_name: Mapped[Optional[str]] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    flags: Mapped[Optional[dict]] = mapped_column(JSONB)                           # secret types, truncated, ...
+    created_at: Mapped[datetime] = _now()                                          # the chat message's time
+    updated_at: Mapped[datetime] = _now()
+    removed_at: Mapped[Optional[datetime]] = mapped_column(TS)
+
+    __table_args__ = (
+        CheckConstraint(_in("source", COMMENT_SOURCES), name="rca_comments_source_check"),
+        CheckConstraint("(source = 'chat') = (message_external_id IS NOT NULL AND provider IS NOT NULL)",
+                        name="rca_comments_chat_message_check"),
+        CheckConstraint("length(trim(text)) > 0", name="rca_comments_text_check"),
+        UniqueConstraint("provider", "message_external_id", name="rca_comments_provider_message_key"),
+        Index("rca_comments_signature_idx", "signature_id", "created_at"),
+        Index("rca_comments_request_idx", "request_id"),
+        Index("rca_comments_thread_idx", "thread_external_id", "created_at"),
+    )
+
+
+class RcaCommentResult(Base):
+    """The RCA results a comment is about: several when it was written under a post that showed several RCAs.
+    A comment covers all subjects of these results."""
+    __tablename__ = "rca_comment_results"
+
+    comment_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("rca_comments.id", ondelete="CASCADE"))
+    result_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("rca_results.id"), index=True)
+
+    __table_args__ = (PrimaryKeyConstraint("comment_id", "result_id"),)
+
+
+class RcaCommentVerdict(Base):
+    """What a later RCA (result_id: the new result) concluded about a comment it was given or relied on.
+    relied_on: the RCA's cause relies on the comment. downgraded: the skill said 'confirmed' but none of its
+    evidence checked out, so NIMI stored 'unverifiable'."""
+    __tablename__ = "rca_comment_verdicts"
+
+    comment_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("rca_comments.id", ondelete="CASCADE"))
+    result_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("rca_results.id"), index=True)
+    verdict: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence: Mapped[Optional[list]] = mapped_column(JSONB)                        # citations as the skill gave them
+    relied_on: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    downgraded: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    created_at: Mapped[datetime] = _now()
+
+    __table_args__ = (
+        PrimaryKeyConstraint("comment_id", "result_id"),
+        CheckConstraint(_in("verdict", COMMENT_VERDICTS), name="rca_comment_verdicts_verdict_check"),
+    )
+
+
+# ============================================================================
 # 3b. Exclusion rules — bot messages that never need an RCA (known harmless / informational alerts)
 # ============================================================================
 

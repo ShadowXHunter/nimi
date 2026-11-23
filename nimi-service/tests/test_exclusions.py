@@ -34,6 +34,14 @@ def test_text_matches_anywhere_in_the_message():
     assert not exclusions.matches(rule(match_text="batch-worker"), {**mem, "text": None})
 
 
+def test_text_rules_ignore_bold_markers():
+    card = {**MSG, "text": "[Alerting] Disk usage high\n    **/data**\n    93"}
+    assert exclusions.matches(rule(match_text="/data"), card)
+    assert exclusions.matches(rule(match_text="**/data**"), {**card, "text": "    /data\n    93"})   # older messages
+    assert not exclusions.matches(rule(match_text="**"), {**card, "text": "no asterisks here"})   # never "match all"
+    assert exclusions.matches(rule(match_text="**"), {**card, "text": "rating: **"})
+
+
 def test_title_falls_back_to_first_line_when_unparsed():
     unparsed = {**MSG, "title": None, "text": "\n Daily report ready\nmore"}
     assert exclusions.matches(rule(match_title="daily report"), unparsed)

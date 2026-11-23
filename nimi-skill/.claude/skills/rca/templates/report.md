@@ -36,11 +36,15 @@ All times in UTC. Where the source used another offset, show it: `<original with
 |---|---|---|
 | | | |
 
+## Comments
+<Only when comments were given or found: one line per comment, as "comment #<id>", with its verdict
+(confirmed / contradicted / unverifiable / not_applicable) and why, or "unrelated" for ones that don't apply here. Omit the section when there were none.>
+
 ## Open questions
 <Anything unresolved, including leads that pointed outside the allowed sources.>
 
-## Confidence
-<High / Medium / Low — and why.>
-
 ## Suggested next steps
 <Remediation / follow-ups, citing runbook sections where they apply. Suggestions only — the skill does not take action.>
+
+## Confidence
+<High / Medium / Low — and why.>

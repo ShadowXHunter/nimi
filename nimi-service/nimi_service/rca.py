@@ -53,19 +53,42 @@ def skill_version(settings) -> str:
     return h.hexdigest()[:12]
 
 
-def build_input(request: dict, new_subjects: list, reused: list, history: bool = False) -> str:
-    """Text passed after /rca: a context block from the service (scope, history command), then the input."""
+def build_input(request: dict, new_subjects: list, reused: list, history: bool = False,
+                comment_lines=(), notes=()) -> str:
+    """Text passed after /rca: a context block from the service (scope, notes, comments, history command and
+    this alert's own history row), then the input. `comment_lines`: from comments.input_context (re-analysis
+    lines, people's comments, pointers). `notes`: the deployment's message notes for this message
+    (profiles.message_notes_for), e.g. how its sender lays out a matched series and its value."""
     parts = []
     if new_subjects and new_subjects != ["*"]:
         parts.append("- Analyze only these subjects: " + ", ".join(new_subjects))
     for r in reused:
         parts.append(f"- Already analyzed, do not re-analyze: {r['subject']} (earlier RCA #{r['rca_id']})")
+    if notes:
+        parts.append("- Notes from this deployment about messages like this one (facts about their sender and "
+                     "format, from its platform profiles):")
+        parts.extend(f"  - {n}" for n in notes)
+    parts.extend(comment_lines)
     if history:
         parts.append(f'- History SQL: {NIMI_SQL} "<one SQL statement>"')
+        if request.get("source_message_id") and request.get("signature_key"):
+            key = request["signature_key"].replace("'", "''")
+            mid = request["source_message_id"]
+            # The key may hold characters the SQL guard rejects (e.g. "<url>"): the subquery form always passes.
+            parts.append(f"- This alert in history: skill_messages message_id = {mid}, "
+                         f"signature_key = '{key}'. Only messages with this signature_key are earlier occurrences "
+                         f"of this alert. In SQL, match it with: signature_key = (SELECT signature_key FROM "
+                         f"skill_messages WHERE message_id = {mid})")
     if parts:
         parts = ["RCA context (from NIMI):"] + parts + ["---"]
     parts.append(request["input_text"])
     return "\n".join(parts)
+
+
+def message_notes(request: dict) -> list:
+    """The deployment's message notes that apply to this request's message (by sender and text)."""
+    from . import profiles
+    return profiles.get().message_notes_for(request.get("input_text"), request.get("sender_display_name"))
 
 
 SENSITIVE_WHERE = {"input", "code", "config", "logs", "docs", "history"}
@@ -142,9 +165,10 @@ def history_access(settings):
         os.unlink(pw_file)
 
 
-def run_rca(settings, request: dict, new_subjects: list, reused: list) -> dict:
+def run_rca(settings, request: dict, new_subjects: list, reused: list, comment_lines=()) -> dict:
     cmd = [
-        settings.claude_bin, "-p", "/rca " + build_input(request, new_subjects, reused, settings.skill_history),
+        settings.claude_bin, "-p", "/rca " + build_input(request, new_subjects, reused, settings.skill_history,
+                                                         comment_lines, message_notes(request)),
         "--settings", str(settings.rca_project / ".claude/nimi-session-settings.json"),
         "--tools", "Read,Grep,Glob,Bash,WebSearch,Skill",
         "--permission-mode", "dontAsk",
@@ -238,11 +262,12 @@ def tldr_of(report: str):
 
 # Citations written by the skill: [label](msg:<message_id>) / [label](rca:<result_id>). The service turns
 # verified ones into links; the skill never writes URLs (Markdown links to URLs are reduced to their label).
-REF_RE = re.compile(r"\[([^\]\n]{1,100})\]\((msg|rca):(\d{1,12})\)")
+REF_RE = re.compile(r"\[([^\]\n]{1,100})\]\((msg|rca|comment):(\d{1,12})\)")
 # Code citations: [label](code:<project>@<commit>/<path in repo>#L<line>[-L<line>]) -> link at that commit.
 CODE_REF_RE = re.compile(r"\[([^\]\n]{1,100})\]\(code:([a-z0-9][a-z0-9_-]{0,40})@([0-9a-f]{7,40})/([^)#\s]{1,400})"
                          r"(?:#L(\d{1,7})(?:-L?(\d{1,7}))?)?\)")
 ID_LABEL_RE = re.compile(r"(?:msg|message|log|alert)?\s*(?:id\s*)?#?\s*\d+", re.I)
+COMMENT_ID_LABEL_RE = re.compile(r"(?:the\s+|a\s+)?comment\s*#?\s*\d+", re.I)
 RCA_ID_LABEL_RE = re.compile(r"(?:the\s+)?(?:earlier\s+)?rca\s*(?:id\s*)?#?\s*\d+", re.I)
 URL_LINK_RE = re.compile(r"\[([^\]\n]{1,100})\]\((?:https?|ftp)://[^)\s]*\)")
 
@@ -251,13 +276,19 @@ def find_refs(text: str) -> tuple:
     """(message ids, rca ids) cited in `text`: inline citations plus the chat message's Related entries."""
     msgs, rcas = set(), set()
     for _label, kind, num in REF_RE.findall(text or ""):
-        (msgs if kind == "msg" else rcas).add(int(num))
+        if kind != "comment":
+            (msgs if kind == "msg" else rcas).add(int(num))
     rel_msgs, rel_rcas = chat_message.related_refs(text)
     return msgs | rel_msgs, rcas | rel_rcas
 
 
+def comment_refs(text: str) -> set:
+    """Comment ids cited inline ([label](comment:<id>)): attributions, linked to the comment's chat message."""
+    return {int(num) for _label, kind, num in REF_RE.findall(text or "") if kind == "comment"}
+
+
 def resolve_refs(provider, text: str, links: dict, code_bases: dict = None) -> str:
-    """Citations -> provider links for verified ones ({("msg"|"rca", id): url}; code: {project: web url});
+    """Citations -> provider links for verified ones ({("msg"|"rca"|"comment", id): url}; code: {project: web url});
     unknown ones -> their label. Labels that are only an ID use ("msg-label"|"rca-label", id) from `links`. Markdown links to URLs are reduced to their label."""
     from .projects import code_url
 
@@ -268,6 +299,8 @@ def resolve_refs(provider, text: str, links: dict, code_bases: dict = None) -> s
             label = (links or {}).get(("msg-label", num)) or "message"
         if kind == "rca" and RCA_ID_LABEL_RE.fullmatch(label.strip()):  # "RCA #39": its title and time instead
             label = (links or {}).get(("rca-label", num)) or "earlier RCA"
+        if kind == "comment" and COMMENT_ID_LABEL_RE.fullmatch(label.strip()):   # "comment #2": IDs mean nothing
+            label = "a comment"
         return provider.link(url, label) if url else label
 
     def code_repl(m):
@@ -278,8 +311,13 @@ def resolve_refs(provider, text: str, links: dict, code_bases: dict = None) -> s
     return URL_LINK_RE.sub(r"\1", CODE_REF_RE.sub(code_repl, REF_RE.sub(repl, text or "")))
 
 
+COMMENTS_BLOCK_RE = re.compile(r"^RCA_COMMENTS\s*\n.*?\n\s*END_RCA_COMMENTS\s*$", re.S | re.M)
+UNVERIFIED_COMMENT_NOTE = "⚠️ The cause relies on a person's comment that NIMI couldn't verify."
+
+
 def _strip_fields(report: str) -> str:
-    return chat_message.CHAT_OPEN_RE.sub("", chat_message.CHAT_RE.sub("", FIELDS_RE.sub("", report or ""))).rstrip()
+    report = COMMENTS_BLOCK_RE.sub("", FIELDS_RE.sub("", report or ""))
+    return chat_message.CHAT_OPEN_RE.sub("", chat_message.CHAT_RE.sub("", report)).rstrip()
 
 
 def _status_line(provider, fields: dict) -> str:
@@ -382,15 +420,25 @@ def looks_like_nimi_post(provider, text: str) -> bool:
 def format_rca(provider, report: str, reused: list, reused_replies: dict, max_chars: int,
                input_sensitive_types=(), disclaimer_text: str = DEFAULT_DISCLAIMER, source: str = "",
                earlier: dict = None, links: dict = None, registry=None, fallback_title: str = "",
-               problems: list = None) -> str:
+               problems: list = None, unverified_comment: bool = False, source_message_id: int = None) -> str:
     """The one chat message for an RCA (or a partly reused one). `links`: verified citation targets;
     `registry` (projects.Registry): for code links and for rewriting local paths to "<project>: <path>".
-    `problems` (optional list) collects what was wrong with the skill's chat block, and any shortening."""
+    `problems` (optional list) collects what was wrong with the skill's chat block, and any shortening.
+    `unverified_comment`: the cause relies on a person's comment that couldn't be verified, so confidence is
+    at most medium, certainty at most likely, and the message says so. `source_message_id`: the alert's own
+    stored message; a Related entry pointing at it says nothing on-call doesn't already see, so it is left out."""
     from .projects import code_links, relativize_paths
     problems = [] if problems is None else problems
     fields = parse_output(report)
     chat, issues = chat_message.parse(report)
     problems.extend(issues)
+    if chat and source_message_id:
+        chat.related = [r for r in chat.related if (r[0], r[1]) != ("msg", source_message_id)]
+    if unverified_comment:
+        if fields.get("confidence") == "high":
+            fields["confidence"] = "medium"
+        if chat and chat.certainty == "confirmed":
+            chat.certainty = "likely"
     if chat:
         title = chat.title or " ".join((fallback_title or "RCA").split())[:chat_message.TITLE_MAX]
     else:
@@ -409,6 +457,8 @@ def format_rca(provider, report: str, reused: list, reused_replies: dict, max_ch
 
     status = _status_line(provider, fields)
     head += [status] if status else []
+    if unverified_comment:
+        head.append(UNVERIFIED_COMMENT_NOTE)
     if chat and chat.context:                   # one line: main subjects, environment / owner
         head.append(finish(chat.context))
     if reused:

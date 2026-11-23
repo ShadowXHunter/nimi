@@ -102,6 +102,37 @@ def test_parse_any_text():
     assert r["kind"] == "other" and r["signature_key"].startswith("other|")
 
 
+# A card like one notifier's Grafana alerts: a header line, the description, then one text per matched series,
+# the series in bold and its value on the next line. NIMI renders it faithfully and doesn't interpret it.
+DISK_CARD = [{"cardId": "card-1", "card": {"sections": [
+    {"widgets": [{"decoratedText": {"topLabel": "Grafana", "bottomLabel": "2026-01-15 10:04:31 UTC",
+                                    "text": "<b>[Alerting]</b> <a href=\"https://grafana.example/d/1\">Disk usage high</a>"}}]},
+    {"widgets": [{"textParagraph": {"text": "Disk usage is above the threshold."}},
+                 {"textParagraph": {"text": "<b>/data</b>\n93.5"}}]}]}}]
+
+
+def test_rendered_cards_keep_bold_and_join_key_value_widgets():
+    out = render_message(msg("[Alerting] [shop-prod] Disk usage high", cards=DISK_CARD))
+    assert "    Grafana\n    **[Alerting]** Disk usage high (https://grafana.example/d/1)\n" in out
+    assert "    **/data**\n    93.5" in out                      # bold kept, nothing joined or guessed
+    legacy = {**msg(), "cards": [{"sections": [{"widgets": [{"keyValue": {"topLabel": "queue", "content": "default"}}]}]}]}
+    assert "    queue: default" in render_message(legacy)          # a label and its value, by the card schema
+    bold = {**msg(), "cards": [{"sections": [{"widgets": [{"keyValue": {"topLabel": "<b>queue</b>",
+                                                                         "content": "default<b> </b>"}}]}]}]}
+    assert "    **queue**: default" in render_message(bold)     # bold kept here too; an empty bold span is not
+    from nimi_service.providers.gchat.render import html_to_text
+    assert html_to_text("<b> </b> mid <b>x</b>", bold=True) == "  mid **x**"   # a blank span never swallows text
+    assert html_to_text("<b><br></b>a<B>x</B>", bold=True) == "\na**x**"
+    assert html_to_text("<b>&nbsp;</b>x", bold=True) == "\xa0x"                 # an entity-only span is blank too
+
+
+def test_parsing_still_sees_plain_card_texts():
+    m = GCHAT.normalize(msg("[Alerting] [shop-prod] Disk usage high", cards=DISK_CARD))
+    assert "\n/data\n93.5" in m.parse_text and "**" not in m.parse_text   # signatures and titles unchanged
+    assert parse_message(msg("[Alerting] [shop-prod] Disk usage high", cards=DISK_CARD))["title"] == "Disk usage high"
+    assert "    **/data**\n    93.5" in m.rendered_text           # what the RCA and history see
+
+
 def test_render_layout():
     out = render_message(msg("[Alerting] x"))
     assert out.splitlines()[0] == "[2026-01-15T10:04:31.123456Z] Monitoring"
@@ -314,6 +345,7 @@ def test_models_cover_all_tables_neutral():
     assert set(Base.metadata.tables) == {
         "channels", "messages", "thread_messages", "reactions", "signatures", "message_parses",
         "rca_requests", "rca_results", "rca_request_subjects", "rca_posts", "rca_post_reuse_links", "rca_feedback",
+        "rca_comments", "rca_comment_results", "rca_comment_verdicts",
         "rca_exclusions", "red_flags", "service_state"}
 
 

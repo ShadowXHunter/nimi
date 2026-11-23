@@ -25,6 +25,12 @@
                                                          report (--chat: the posted chat message; --render: the chat
                                                          message rendered now, current layout, no length limit;
                                                          --all: every attempt)
+  python -m nimi_service comment request|result <id> "<text>"
+                                                         add a comment on an RCA (like `!nimi` in chat)
+  python -m nimi_service comments [list] [--request N] [--signature N] [--unattached] [--all]
+                                                         people's comments on RCAs, newest first
+  python -m nimi_service comments attach <id> <result_id>   attach an unattached comment to an RCA result
+  python -m nimi_service comments remove <id>            remove a comment for good (a chat edit won't revive it)
   python -m nimi_service status                          channels, message counts, request states
   python -m nimi_service config                          effective settings and where each came from (secrets masked)
   python -m nimi_service red-flags [--all]               list open red flags (sensitive data, rule violations, errors)
@@ -45,7 +51,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import db, exclusions, pause, redflags
+from . import comments, db, exclusions, pause, redflags
 from .config import describe, env_files, load_settings
 from .ingest import backfill_channel, ingest_all, reparse_all
 from .parse import PARSER_VERSION, parse_text
@@ -148,8 +154,9 @@ def _render_chat(settings, s, req: dict, res, subjects) -> str:
     text = format_rca(provider, res.report, reused, db.reply_ids_for_results(s, ids, "thread"), 10 ** 6,
                       input_sensitive_types(req, parse_output(res.report).get("sensitive_data") or []),
                       settings.reply_disclaimer, "", db.earlier_rcas(s, ids),
-                      citation_links(s, provider, res.report, "thread"), projects.load(settings),
-                      req.get("source_title") or "")
+                      citation_links(s, provider, res.report, "thread", req), projects.load(settings),
+                      req.get("source_title") or "", unverified_comment=db.relies_on_unverified_comment(s, res.id),
+                      source_message_id=req.get("source_message_id"))
     return ("(rendered now with the current layout and links, no length limit; not the posted copy)\n\n"
             + scanner.mask(text)[0])
 
@@ -194,6 +201,8 @@ def cmd_show(settings, ref: str, provider, chat: bool, show_all: bool, render: b
         for p in db.posts_for(s, rid):
             print(f"    posted: {p.kind} to {p.destination} at {p.posted_at:%Y-%m-%d %H:%M}Z"
                   + (f" (result {p.result_id})" if p.result_id else ""))
+        for c in db.comments_for_request(s, rid):
+            print("    comment " + comments.describe(s, c).replace("\n", "\n    "))
         results = db.results_for(s, rid)
         for res in (results if show_all else results[:1]):
             print(_result_line(res) + "\n")
@@ -349,6 +358,7 @@ def cmd_parse_test(settings, args) -> None:
             print(f"  {key:<14} {r.get(key)}")
         notes = prof.notes_for(args.text)
         print(f"  {'triage notes':<14} {notes or '(none)'}")
+        print(f"  {'message notes':<14} {prof.message_notes_for(args.text, args.sender) or '(none)'}")
         return
     with db.session() as s:
         rows = db.main_messages_for_parse_test(s, channel=args.channel, sender=args.sender)
@@ -373,6 +383,40 @@ def cmd_parse_test(settings, args) -> None:
     print(f"\n{total} message(s); kinds: {dict(kinds)}; layouts: {dict(layouts)}")
     print(f"{len(sigs)} distinct signature(s) with the current parser; {changed} message(s) would change "
           f"signature on `reparse`.")
+
+
+def cmd_comment(settings, kind: str, ref_id: int, text: str) -> None:
+    import getpass
+    with db.session() as s:
+        cid = comments.add_cli_comment(s, settings, kind, ref_id, text, getpass.getuser())
+        print("added comment " + comments.describe(s, db.get_comment(s, cid)))
+
+
+def cmd_comments(args) -> None:
+    import getpass
+    with db.session() as s:
+        if args.action == "remove":
+            if not args.comment_id:
+                sys.exit("usage: comments remove <id>")
+            ok = comments.remove_by_cli(s, args.comment_id, getpass.getuser())
+            print(f"comment {args.comment_id} removed" if ok else f"no comment {args.comment_id}")
+            return
+        if args.action == "attach":
+            if not args.comment_id or not args.result_id:
+                sys.exit("usage: comments attach <id> <result_id>")
+            c = db.get_comment(s, args.comment_id)
+            if c is None:
+                sys.exit(f"no comment {args.comment_id}")
+            target = comments.target_of(s, "result", args.result_id)
+            db.attach_comment(s, c.id, target["request_id"], target["signature_id"], target["result_ids"])
+            s.refresh(c)
+            print("attached: " + comments.describe(s, c))
+            return
+        found = db.list_comments(s, signature_id=args.signature, request_id=args.request,
+                                 unattached=args.unattached, include_removed=args.all)
+        for c in found:
+            print(comments.describe(s, c))
+        print(f"{len(found)} comment(s)" + ("" if args.all else " (active; --all to include removed)"))
 
 
 def cmd_red_flags(args) -> None:
@@ -462,6 +506,18 @@ def main() -> None:
     p.add_argument("--expires", help="e.g. 7d, 12h, or an ISO time (default: never)")
     p.add_argument("--yes", action="store_true", help="add without confirmation")
     p.add_argument("--all", action="store_true", help="list: include disabled/expired rules")
+    p = sub.add_parser("comment", help="add a comment on an RCA (like `!nimi` in chat)")
+    p.add_argument("kind", choices=["request", "result"])
+    p.add_argument("ref_id", type=int)
+    p.add_argument("text")
+    p = sub.add_parser("comments", help="people's comments on RCAs: list | attach | remove")
+    p.add_argument("action", nargs="?", choices=["list", "attach", "remove"], default="list")
+    p.add_argument("comment_id", nargs="?", type=int)
+    p.add_argument("result_id", nargs="?", type=int, help="attach: the RCA result to attach the comment to")
+    p.add_argument("--request", type=int, help="list: comments on this request")
+    p.add_argument("--signature", type=int, help="list: comments on RCAs of this signature (ID)")
+    p.add_argument("--unattached", action="store_true", help="list: comments NIMI couldn't attach to an RCA")
+    p.add_argument("--all", action="store_true", help="list: include removed comments")
     sub.add_parser("config")
     sub.add_parser("resume")
     p = sub.add_parser("show")
@@ -574,6 +630,10 @@ def main() -> None:
         cmd_red_flags(args)
     elif args.cmd == "exclude":
         cmd_exclude(args)
+    elif args.cmd == "comment":
+        cmd_comment(settings, args.kind, args.ref_id, args.text)
+    elif args.cmd == "comments":
+        cmd_comments(args)
     elif args.cmd == "resume":
         with db.session() as s:
             had = pause.get(s) is not None

@@ -8,7 +8,7 @@ Allows only:
   - WebSearch with plain-text queries (no URLs/domains), to look up answers on the open internet
   - WebFetch is always denied, so links found in alert text/logs are never opened
   - Bash: `<nimi checkout>/nimi-service/bin/nimi-sql "<one SQL statement>"` — read-only SQL over NIMI's history
-    (past bot messages, previous RCAs) as a database role that can only read two views
+    (past bot messages, previous RCAs, comments) as a database role that can only read three views
 Everything else is denied, so nothing on the local machine can be modified.
 
 Every denial is appended to ~/.local/state/nimi/guard-denials.jsonl (session id, tool, reason, severity:

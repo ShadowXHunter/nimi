@@ -43,9 +43,10 @@ flowchart LR
 | Triage | `triage.py` | One cheap model call with no tools per request: reuse an earlier RCA, run a fresh one, or none. Code enforces the limits. |
 | RCA runner | `rca.py` | Runs `claude -p "/rca …"` headlessly with the guard, parses the report and its `RCA_FIELDS`, formats replies. |
 | Workflow | `workflow.py` | The request state machine, scheduling, posting, pause handling, red flags from runs. |
-| Feedback | `reactions.py` | Turns 👍 / 🤔 / 👎 on replies into feedback. |
+| Feedback | `reactions.py` | Turns 👍 / 🤔 / 👎 on replies into feedback, and keeps edited or deleted comments in sync. |
+| Comments | `comments.py` | Stores `!nimi` [comments](../guides/comments.md), attaches them to RCAs, gives them to the next RCA and checks its verdicts. |
 | Safety | `scanner.py`, `redflags.py`, `pause.py`, `claude_cli.py` | Secret detection, admin notifications, Claude unavailability, clean Claude environment. |
-| History SQL | `skill_sql.py`, `bin/nimi-sql` | Read-only SQL for the skill over two views. |
+| History SQL | `skill_sql.py`, `bin/nimi-sql` | Read-only SQL for the skill over three views. |
 | The skill | `nimi-skill/.claude/` | `skills/rca/SKILL.md` (process), `agents/rca-investigator.md` (read-only subagent), `hooks/nimi_guard.py` (enforcement), `skills/rca/projects/` (what to read). |
 
 ## Life of an alert

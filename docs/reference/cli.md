@@ -55,6 +55,20 @@ Run from `nimi-service/`:
 
 See [Messages that don't need an RCA](../guides/skipping-messages.md).
 
+## Comments
+
+People comment on an RCA with `!nimi` in chat; these commands do the same from the shell and manage
+comments. See [Comments on RCAs](../guides/comments.md).
+
+| Command | What it does |
+|---|---|
+| `comment request <id> "…"` / `comment result <id> "…"` | Add a comment on a request (its latest RCA, or the request until it has one) or on one RCA result. Secrets are masked, long text is cut. |
+| `comments [list] [--request N] [--signature N] [--unattached] [--all]` | Comments, newest first: author, what they belong to, flags, text. `--all` includes removed ones. |
+| `comments attach <id> <result_id>` | Attach a comment NIMI couldn't place (e.g. a top-level `!nimi` message) to an RCA result. |
+| `comments remove <id>` | Remove a comment for good: editing the chat message won't bring it back. |
+
+`show` lists the comments on a request and on its results.
+
 ## Red flags
 
 | Command | What it does |

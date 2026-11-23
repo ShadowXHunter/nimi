@@ -51,6 +51,17 @@ Without a password or file, libpq falls back to `~/.pgpass`, trust or peer authe
 | `NIMI_RCA_PROJECT` | `<repo>/nimi-skill` | Where the `/rca` skill lives. |
 | `NIMI_SYNC_MINUTES` | `10` | How often projects with `sync` in the registry are updated (only between RCA runs). |
 
+## Comments
+
+People comment on an RCA with `!nimi` in chat (see [Comments on RCAs](../guides/comments.md)).
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `NIMI_COMMENT_MAX_CHARS` | `1000` | Longer comments are cut (after secrets are masked) and flagged. |
+| `NIMI_COMMENT_AUTHORS` | anyone | Comma-separated chat user IDs (e.g. `users/123`) whose comments are stored; others are ignored. |
+| `NIMI_COMMENT_INPUT_MAX_CHARS` | `8000` | Safety limit on comment text given in full to one RCA run. Beyond it, the oldest comments are only pointed to (a low red flag when this alert's own comments don't fit). |
+| `NIMI_RELATED_COMMENT_HOURS` | `6` | Comments on other alerts written within this many hours of an alert (before or after) are given to its RCA run, marked as about another alert. `0` turns the time match off; comments that name one of the run's subjects are still given. See [comments](../guides/comments.md#comments-on-other-alerts). |
+
 ## Claude
 
 | Setting | Default | Meaning |
@@ -69,7 +80,7 @@ Without a password or file, libpq falls back to `~/.pgpass`, trust or peer authe
 | `NIMI_POST_ENABLED` | `false` | Post replies to chat (off = dry run). |
 | `NIMI_POST_TARGET` | `thread` | Where replies go: `thread` (in the alert's thread), `webhook` (a separate space, with a link back to the alert) or `both`. See [Where replies go](../guides/where-replies-go.md). |
 | `NIMI_POST_WEBHOOK` | unset | Incoming webhook URL of the destination space for `webhook` / `both` (secret). |
-| `NIMI_POST_MAX_CHARS` | `4000` | Maximum reply length (the report body is truncated; notes and the feedback line are kept). |
+| `NIMI_POST_MAX_CHARS` | `4000` | Maximum reply length. A reply that doesn't fit loses whole optional sections (related, also, fixes, verify, in that order) and says it was shortened; the full report is stored. |
 | `NIMI_REPLY_DISCLAIMER` | built-in | Disclaimer on the first line of every RCA message (default: "Automated RCA, not verified. Based on code and docs that may differ from production."). |
 | `NIMI_ADMIN_WEBHOOK` | unset | Incoming webhook of the admin's chat space for red flags (secret). |
 | `NIMI_GUARD_DENIAL_LOG` | `~/.local/state/nimi/guard-denials.jsonl` | Where the guard hook logs denials. |

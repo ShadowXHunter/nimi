@@ -50,6 +50,7 @@ nav:
       - Platform profiles: guides/platform-profiles.md
       - Replies: guides/where-replies-go.md
       - Feedback and reuse: guides/feedback-and-reuse.md
+      - Comments on RCAs: guides/comments.md
       - Red flags: guides/red-flags.md
       - When Claude is unavailable: guides/claude-availability.md
       - Adding a project to analyze: guides/adding-a-project.md
@@ -71,4 +72,6 @@ nav:
       - Settings: reference/settings.md
       - Skill output contract: reference/output-contract.md
       - Glossary: reference/glossary.md
+  - Design:
+      - Comments on RCAs: design/comments.md
   - Roadmap: roadmap.md

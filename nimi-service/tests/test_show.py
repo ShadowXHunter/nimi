@@ -15,7 +15,7 @@ def result(rid, outcome="rca", report="REPORT", chat="CHAT", request_id=7):
                            self_healing="yes", commit_sha="3f2a9c1", report=report, chat_text=chat, error=None)
 
 
-def fake_db(monkeypatch, results, subjects=(), earlier=None):
+def fake_db(monkeypatch, results, subjects=(), earlier=None, comments=()):
     s = SimpleNamespace(get=lambda _model, i: earlier[i])
 
     @contextmanager
@@ -32,6 +32,10 @@ def fake_db(monkeypatch, results, subjects=(), earlier=None):
     monkeypatch.setattr(cli.db, "subjects_for", lambda _s, _r: list(subjects))
     monkeypatch.setattr(cli.db, "posts_for", lambda _s, _r: [])
     monkeypatch.setattr(cli.db, "results_for", lambda _s, _r: results)
+    monkeypatch.setattr(cli.db, "comments_for_request", lambda _s, _r: list(comments))
+    monkeypatch.setattr(cli.db, "comment_result_ids", lambda _s, cid: [9] if cid == 4 else [])
+    monkeypatch.setattr(cli.db, "verdicts_for_comment", lambda _s, cid: [SimpleNamespace(
+        result_id=11, verdict="unverifiable", relied_on=True, downgraded=True, evidence=["the job log"])] if cid == 4 else [])
 
 
 def test_latest_report_by_default_and_all_attempts_on_request(monkeypatch, capsys):
@@ -66,7 +70,27 @@ def test_render_builds_the_chat_message_now_without_the_length_limit(monkeypatch
     monkeypatch.setattr(cli.db, "earlier_rcas", lambda _s, _ids: {})
     monkeypatch.setattr(workflow, "citation_links", lambda *_a: {})
     monkeypatch.setattr(projects, "load", lambda _settings: projects.Registry())
+    monkeypatch.setattr(cli.db, "relies_on_unverified_comment", lambda _s, _rid: False)
     cli.cmd_show(Settings(), "7", None, chat=False, show_all=False, render=True)
     out = capsys.readouterr().out
     assert "rendered now" in out and "x" * 6000 in out and "POSTED" not in out
     assert "*RCA: Order export delayed*" in out and "shortened" not in out.split("not the posted copy")[1]
+    assert "couldn't verify" not in out
+    monkeypatch.setattr(cli.db, "relies_on_unverified_comment", lambda _s, rid: rid == 9)   # as posted
+    cli.cmd_show(Settings(), "7", None, chat=False, show_all=False, render=True)
+    assert "couldn't verify" in capsys.readouterr().out
+
+
+def test_comments_on_the_request_and_its_results_are_listed(monkeypatch, capsys):
+    on_result = SimpleNamespace(id=4, created_at=T, source="chat", author_display_name="A. Person",
+                                author_external_id="users/7", request_id=7, removed_at=None,
+                                flags={"secrets": ["aws-access-key"]}, text="tableC   didn't match\nwhat we found")
+    removed = SimpleNamespace(id=5, created_at=T, source="cli", author_display_name="op", author_external_id="op",
+                              request_id=7, removed_at=T, flags={"removed_by": "op"}, text="never mind")
+    fake_db(monkeypatch, [result(9)], comments=[on_result, removed])
+    cli.cmd_show(Settings(), "7", None, chat=False, show_all=False)
+    out = capsys.readouterr().out
+    assert "comment #4 2026-03-03 14:20Z chat by A. Person — request 7, results 9 (secrets masked: aws-access-key)" in out
+    assert "tableC didn't match what we found" in out
+    assert "→ RCA #11: unverifiable (relied on, downgraded: evidence didn't check out) — evidence: the job log" in out
+    assert "#5" in out and "no result yet removed 2026-03-03 14:20Z (removed by op)" in out

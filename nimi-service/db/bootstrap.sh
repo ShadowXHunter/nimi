@@ -24,7 +24,7 @@
 #   and restricts the database so only NIMI's roles can connect and only the service role can create objects.
 # - Creates the skill's read-only role (used by the skill's `nimi-sql` for RCA history lookups): read-only
 #   sessions, 5s statement timeout, max 5 connections, no grants yet — `db upgrade` grants it SELECT on the
-#   skill_messages and skill_rcas views only.
+#   skill_messages, skill_rcas and skill_comments views only.
 # - Safe to re-run: existing roles/database are left alone (passwords are re-synced from the file).
 # - Passwords reach psql on standard input, never as command-line arguments (which `ps` would show).
 set -euo pipefail

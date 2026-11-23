@@ -4,8 +4,9 @@
 # Creates a read-only Postgres role for reviewing stored data during development (e.g. when Claude is asked
 # to review messages), so reviews never use the service's read-write credentials. The role can:
 #   - read ONLY the review_messages view (bot messages, top-level + thread; no human messages, raw
-#     payloads, reactions, feedback, or workflow tables) and the skill_rcas view (finished RCAs: report,
-#     outcome, triage decision, feedback counts — the same view the skill reads),
+#     payloads, reactions, feedback, or workflow tables), the skill_rcas view (finished RCAs: report,
+#     outcome, triage decision, feedback counts — the same view the skill reads) and the skill_comments view
+#     (people's comments on RCAs, without authors — also what the skill reads),
 #   - write nothing (no write grants; sessions start read-only, 30s statement timeout, max 3 connections).
 # Its password goes into ~/.pgpass (chmod 600), so `psql -h 127.0.0.1 -U <role> <db>` works without anyone
 # handling the password.
@@ -24,7 +25,7 @@ PGPORT="${PGPORT:-5432}"
 PGHOSTADDR="127.0.0.1"
 ENV_FILE="$HOME/.config/nimi/service.env"
 PGPASS="$HOME/.pgpass"
-VIEWS=(review_messages skill_rcas)
+VIEWS=(review_messages skill_rcas skill_comments)
 
 from_env_file() { [[ -f "$ENV_FILE" ]] && grep "^$1=" "$ENV_FILE" | tail -1 | cut -d= -f2- || true; }
 DB_NAME="${NIMI_DB_NAME:-$(from_env_file NIMI_DB_NAME)}"; DB_NAME="${DB_NAME:-nimi}"

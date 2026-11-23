@@ -8,7 +8,7 @@ limits what any model can do regardless of what it is told.
 
 | Actor | Can | Cannot |
 |---|---|---|
-| **RCA skill** | Read registered repos and its own folder; read-only `git`; plain-text web search; read-only SQL over two views. | Write or modify anything; run other commands or scripts; open URLs (including links in alerts); read the service code, config or credentials; use MCP servers. |
+| **RCA skill** | Read registered repos and its own folder; read-only `git`; plain-text web search; read-only SQL over three views (messages, RCAs, comments; no author names). | Write or modify anything; run other commands or scripts; open URLs (including links in alerts); read the service code, config or credentials; use MCP servers. |
 | **Triage model** | Read the prompt the service builds. | Use any tool. |
 | **Service** | Read/write its database; read/post in registered channels as the configured user; call the admin webhook. | (Code, not a model: it never executes model output.) |
 
@@ -37,7 +37,7 @@ See [Red flags](../guides/red-flags.md).
 
 ## Least-privilege database access
 
-Three roles: the service (owner), the skill reader (two views, read-only, 5s timeout), and an optional
+Three roles: the service (owner), the skill reader (three views, read-only, 5s timeout), and an optional
 development review role (one view). Even unrestricted SQL from the skill can't read other tables, write,
 create objects, read server files or run longer than 5 seconds. See [Data model](data-model.md#database-roles).
 

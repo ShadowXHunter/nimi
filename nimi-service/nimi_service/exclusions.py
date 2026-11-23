@@ -38,9 +38,22 @@ def matches(rule, f: dict) -> bool:
             return False
     if rule.match_status is not None and rule.match_status.lower() != (f.get("status") or "").lower():
         return False
-    if rule.match_text is not None and rule.match_text.lower() not in (f.get("text") or "").lower():
+    if rule.match_text is not None and not _text_matches(rule.match_text, f.get("text")):
         return False
     return True
+
+
+def _text_matches(rule_text: str, text_: str) -> bool:
+    """Substring match ignoring case and Markdown bold. A rule that is only asterisks matches them literally
+    (stripped, it would be empty and match every message)."""
+    plain = _plain(rule_text)
+    return plain in _plain(text_) if plain else rule_text.lower() in (text_ or "").lower()
+
+
+def _plain(text_: str) -> str:
+    """Lowercase, without Markdown bold: card labels are rendered as `**label**` (since Nov 2026), and a rule
+    written against either form must match both."""
+    return (text_ or "").replace("**", "").lower()
 
 
 def active_rules(s, now: datetime) -> list:

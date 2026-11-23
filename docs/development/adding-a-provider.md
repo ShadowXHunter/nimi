@@ -11,6 +11,7 @@ To support another chat platform (Slack, Teams, …):
     - `external_id` must be unique per provider and stable;
     - set `thread_external_id`, and `is_thread_reply` for replies;
     - map sender types to `bot` / `human` (this decides what is ever analyzed);
+    - set `body_text` to what the sender typed, without cards or headers (comments are read from it);
     - normalize emoji so 👍 / 🤔 / 👎 match `reactions.VERDICTS` (strip skin tones).
 3. **Register it** in `providers/__init__.py`.
 4. **Add its credentials** as settings in `config.py` (plus `env.example` and the settings reference).

@@ -77,5 +77,28 @@ def test_build_input_names_the_history_command():
     assert build_input({"input_text": "alert"}, ["*"], [], history=False) == "alert"
 
 
+def test_build_input_names_the_alerts_own_signature():
+    req = {"input_text": "alert", "source_message_id": 42, "signature_key": "alert|[shop-prod] it's slow"}
+    text = build_input(req, ["*"], [], history=True)
+    assert ("- This alert in history: skill_messages message_id = 42, "
+            "signature_key = 'alert|[shop-prod] it''s slow'.") in text
+    assert text.index("History SQL") < text.index("This alert in history") < text.index("---")
+    assert "signature_key = (SELECT signature_key FROM skill_messages WHERE message_id = 42)" in text
+    assert "This alert in history" not in build_input(req, ["*"], [], history=False)
+    assert "This alert in history" not in build_input({"input_text": "x", "signature_key": "k"}, ["*"], [],
+                                                      history=True)          # manual input: no message row
+
+
+def test_signature_subquery_passes_the_guard_when_the_key_does_not(tmp_path):
+    req = {"input_text": "alert", "source_message_id": 7,
+           "signature_key": "alert|disk usage high on cart-api. see <url> for the dashboard."}
+    line = next(l for l in build_input(req, ["*"], [], history=True).splitlines() if "This alert" in l)
+    subquery = line.split("match it with: ")[1]
+    key = req["signature_key"]
+    assert guard(f"{NIMI_SQL} \"SELECT count(*) FROM skill_messages WHERE {subquery}\"", tmp_path) == "allow"
+    assert guard(f"{NIMI_SQL} \"SELECT count(*) FROM skill_messages WHERE signature_key = '{key}'\"",
+                 tmp_path) == "deny"
+
+
 def test_nimi_sql_wrapper_is_committed_and_executable():
     assert NIMI_SQL.exists() and os.access(NIMI_SQL, os.X_OK)

@@ -83,8 +83,8 @@ class Settings:
     db_password_file: Optional[Path] = None
     db_sslmode: str = ""
 
-    # Read-only role for the skill's SQL access to history (`nimi-sql`): can read only the skill_messages and
-    # skill_rcas views. Created by db/bootstrap.sh; `db upgrade` grants it access to the views.
+    # Read-only role for the skill's SQL access to history (`nimi-sql`): can read only the skill_messages,
+    # skill_rcas and skill_comments views. Created by db/bootstrap.sh; `db upgrade` grants it access to the views.
     db_skill_user: str = "nimi_skill_reader"
     db_skill_password: str = field(default="", repr=False)
     db_skill_password_file: Optional[Path] = None
@@ -101,6 +101,12 @@ class Settings:
     # Reactions -> feedback
     reaction_days: int = 7              # re-check reactions on RCA replies posted within this window
     reaction_interval_minutes: int = 10
+
+    # Comments on RCAs (`!nimi` in chat; see docs/design/comments.md)
+    comment_max_chars: int = 1000       # longer comments are cut (after masking secrets) and flagged
+    comment_authors: tuple = ()         # chat user IDs allowed to comment; empty = anyone who can post there
+    comment_input_max_chars: int = 8000  # safety limit on comment text given in full to one RCA run
+    related_comment_hours: int = 6      # comments on other alerts written this close to an alert are given too; 0 = off
 
     # Triage (model decides reuse vs new; code enforces limits)
     reuse_days: int = 7
@@ -198,6 +204,10 @@ ENV_VARS = {
     "NIMI_POLL_SECONDS": ("poll_seconds", int, False),
     "NIMI_BACKFILL_DAYS": ("backfill_days", int, False),
     "NIMI_REACTION_DAYS": ("reaction_days", int, False),
+    "NIMI_COMMENT_MAX_CHARS": ("comment_max_chars", int, False),
+    "NIMI_COMMENT_AUTHORS": ("comment_authors", _list, False),
+    "NIMI_COMMENT_INPUT_MAX_CHARS": ("comment_input_max_chars", int, False),
+    "NIMI_RELATED_COMMENT_HOURS": ("related_comment_hours", int, False),
     "NIMI_TRIAGE_MODEL": ("triage_model", str, False),
     "NIMI_REUSE_DAYS": ("reuse_days", int, False),
     "NIMI_ALERT_SENDERS": ("alert_senders", _list, False),

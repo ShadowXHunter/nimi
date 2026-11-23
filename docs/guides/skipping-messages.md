@@ -25,7 +25,7 @@ A rule matches a message when **every** field it sets matches; unset fields matc
 | `--sender <id>` | exact sender ID, e.g. `users/123` (see the note below) |
 | `--title <text>` | case-insensitive substring of the parsed title (or the first line of the text) |
 | `--status <status>` | parsed status, e.g. `Alerting` (case-insensitive) |
-| `--text <text>` | case-insensitive substring of the message's full text, e.g. a service or host name that the parser keeps out of the title |
+| `--text <text>` | case-insensitive substring of the message's full text (Markdown bold `**` is ignored on both sides), e.g. a service or host name that the parser keeps out of the title |
 
 A signature is the parser's coarse "kind of message": varying parts such as numbers, IDs, timestamps and
 masked subjects are removed, so all occurrences of the same alert share it. **The service matches it in

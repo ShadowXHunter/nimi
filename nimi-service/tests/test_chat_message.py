@@ -228,3 +228,25 @@ def test_a_sentence_citing_an_rca_keeps_its_fact_and_gets_the_rca_title():
     assert ("<https://chat.google.com/room/A/T/R?cls=10|Order export file missing, Mar 03 14:20 UTC> found 40 "
             "identical errors since May 2.") in text
     assert "agrees" not in text                                                   # bare mention: still removed
+
+
+def test_comment_citations_link_to_the_comment_or_stay_plain():
+    from nimi_service.rca import comment_refs, find_refs, resolve_refs
+    text = ("The index is missing, per [a comment](comment:2) (not verified). "
+            "[comment #3](comment:3) says the same. Error in [log](msg:5).")
+    assert comment_refs(text) == {2, 3} and find_refs(text) == ({5}, set())
+    out = resolve_refs(GCHAT, text, {("comment", 2): "https://chat.google.com/room/A/T/C?cls=10"})
+    assert "per <https://chat.google.com/room/A/T/C?cls=10|a comment> (not verified)" in out
+    assert "a comment says the same" in out                    # not linkable (e.g. CLI comment): plain label
+    chat = {**CHAT, "cause": {"certainty": "likely", "points": [text]}}
+    assert "per a comment (not verified)" in format_rca(GCHAT, report_with(chat), [], {}, 4000)
+
+
+def test_related_leaves_out_the_alerts_own_message():
+    related = [{"ref": "msg:4182", "label": "Alerting 02:00 UTC", "why": "the alert this RCA is about"},
+               {"ref": "msg:4190", "label": "warehouse API 503 log, 02:10 UTC", "why": "first error"}]
+    text = format_rca(GCHAT, report_with({**CHAT, "related": related}), [], {}, 4000, source_message_id=4182)
+    assert "Alerting 02:00 UTC" not in text and "warehouse API 503 log" in text
+    alone = format_rca(GCHAT, report_with({**CHAT, "related": related[:1]}), [], {}, 4000, source_message_id=4182)
+    assert "Related" not in alone                        # nothing left: no empty section
+    assert "Alerting 02:00 UTC" in format_rca(GCHAT, report_with({**CHAT, "related": related}), [], {}, 4000)

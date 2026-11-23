@@ -7,16 +7,18 @@ Usage:
 Sessions are not shared across threads; each worker opens its own `db.session()`.
 Messages are identified internally by numeric IDs, and externally by (provider, external_id).
 """
+import re
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Iterator, Optional
 
 from sqlalchemy import and_, case, create_engine, delete, func, literal_column, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, sessionmaker
 
-from .models import (Channel, Message, MessageParse, RcaFeedback, RcaPost, RcaPostReuseLink, RcaRequest,
-                     RcaRequestSubject, RcaResult, Reaction, Signature, ThreadMessage)
+from .models import (Channel, Message, MessageParse, RcaComment, RcaCommentResult, RcaCommentVerdict, RcaFeedback,
+                     RcaPost, RcaPostReuseLink, RcaRequest, RcaRequestSubject, RcaResult, Reaction, Signature,
+                     ThreadMessage)
 
 _SessionLocal: Optional[sessionmaker] = None
 
@@ -209,16 +211,18 @@ def create_request(s: Session, source_type, input_text, signature_id=None, sourc
 
 
 def get_request(s: Session, request_id) -> Optional[dict]:
-    """The request as a dict, plus its source message's provider, channel, thread, external ID, channel label
-    and parsed title (if any)."""
+    """The request as a dict, plus its source message's provider, channel, thread, external ID, sender name,
+    channel label and parsed title (if any), and the request's signature key."""
     row = s.execute(
         select(RcaRequest, Message.provider, Message.channel_id, Channel.external_id.label("channel_external_id"),
                Message.thread_external_id, Message.created_at.label("message_created_at"),
-               Message.external_id.label("source_external_id"), Channel.label.label("channel_label"),
-               MessageParse.title.label("source_title"))
+               Message.external_id.label("source_external_id"), Message.sender_display_name,
+               Channel.label.label("channel_label"),
+               MessageParse.title.label("source_title"), Signature.signature_key)
         .outerjoin(Message, Message.id == RcaRequest.source_message_id)
         .outerjoin(Channel, Channel.id == Message.channel_id)
         .outerjoin(MessageParse, MessageParse.message_id == Message.id)
+        .outerjoin(Signature, Signature.id == RcaRequest.signature_id)
         .where(RcaRequest.id == request_id)).first()
     if row is None:
         return None
@@ -226,8 +230,9 @@ def get_request(s: Session, request_id) -> Optional[dict]:
     d = {c.key: getattr(req, c.key) for c in RcaRequest.__table__.columns}
     d.update(provider=row.provider, channel_id=row.channel_id, channel_external_id=row.channel_external_id,
              thread_external_id=row.thread_external_id, message_created_at=row.message_created_at,
-             source_external_id=row.source_external_id, channel_label=row.channel_label,
-             source_title=row.source_title)
+             source_external_id=row.source_external_id, sender_display_name=row.sender_display_name,
+             channel_label=row.channel_label,
+             source_title=row.source_title, signature_key=row.signature_key)
     return d
 
 
@@ -387,15 +392,25 @@ def signature_history(s: Session, signature_id, before, days, limit) -> list:
     return [dict(r) for r in reversed(rows)]
 
 
-def reuse_candidates(s: Session, signature_id, before, days, exclude_request_id=None) -> list:
+def _active_comment_on(result_id_col):
+    """An active comment is linked to this result."""
+    return select(RcaCommentResult.result_id).join(RcaComment, RcaComment.id == RcaCommentResult.comment_id) \
+        .where(RcaCommentResult.result_id == result_id_col, RcaComment.removed_at.is_(None)).exists()
+
+
+def reuse_candidates(s: Session, signature_id, before, days, exclude_request_id=None, commented=False) -> list:
     """Successful RCA results for the same signature in the window, never ones rated 👎 (active feedback),
-    never the request's own earlier results (a re-run must not just return its previous answer), and never
-    results of `rca --no-post` runs (nobody saw or rated them, and a reuse reply couldn't link to them)."""
+    never the request's own earlier results (a re-run must not just return its previous answer), never
+    results of `rca --no-post` runs (nobody saw or rated them, and a reuse reply couldn't link to them), and
+    never results people commented on (docs/design/comments.md: the next firing gets a fresh RCA instead).
+    `commented=True` returns the commented results in the window instead, for the re-analysis lines of the RCA
+    input: also ones rated 👎 or from `--no-post` runs, because their comments must still reach the next RCA."""
     fb = (select(RcaFeedback.result_id,
                  func.count().filter(RcaFeedback.verdict == "correct").label("correct"),
                  func.count().filter(RcaFeedback.verdict == "partial").label("partial"),
                  func.count().filter(RcaFeedback.verdict == "wrong").label("wrong"))
           .where(RcaFeedback.removed_at.is_(None)).group_by(RcaFeedback.result_id).subquery())
+    has_comment = _active_comment_on(RcaResult.id)
     rows = s.execute(
         select(RcaResult.id.label("result_id"), RcaResult.created_at, RcaResult.report, RcaRequest.input_text,
                RcaRequest.id.label("request_id"),
@@ -404,9 +419,9 @@ def reuse_candidates(s: Session, signature_id, before, days, exclude_request_id=
         .outerjoin(fb, fb.c.result_id == RcaResult.id)
         .where(RcaRequest.signature_id == signature_id, RcaResult.outcome == "rca",
                RcaResult.created_at < before, RcaResult.created_at > _days_before(before, days),
-               func.coalesce(fb.c.wrong, 0) == 0,
                RcaRequest.id != (exclude_request_id or -1),
-               RcaRequest.requested_by.is_distinct_from(NO_POST))
+               *([has_comment] if commented else
+                 [~has_comment, func.coalesce(fb.c.wrong, 0) == 0, RcaRequest.requested_by.is_distinct_from(NO_POST)]))
         .order_by(RcaResult.created_at.desc())).mappings().all()
     out = []
     for r in rows:
@@ -468,14 +483,20 @@ def reply_ids_for_results(s: Session, result_ids, destination="thread") -> dict:
     return out
 
 
+NIMI_HEADER_LIKE = "%\n  \U0001F441\uFE0F *NIMI* %"     # NIMI's reply header line (as in the skill_messages view)
+
+
 def bot_messages_for_citation(s: Session, message_ids) -> dict:
-    """message id -> (external id, created_at, channel label), for top-level bot messages only (what the
-    skill can see in skill_messages)."""
+    """message id -> (external id, created_at, channel label), for the bot messages the skill can see in
+    skill_messages: never NIMI's own posts (by their rca_posts row or NIMI header line, as in the view), so a
+    verdict can't rest on an earlier, unverified RCA."""
     if not message_ids:
         return {}
+    own_post = select(RcaPost.id).where(RcaPost.reply_external_id == Message.external_id).exists()
     rows = s.execute(select(Message.id, Message.external_id, Message.created_at, Channel.label)
                      .join(Channel, Channel.id == Message.channel_id)
-                     .where(Message.id.in_(list(message_ids)), Message.sender_type == "bot")).all()
+                     .where(Message.id.in_(list(message_ids)), Message.sender_type == "bot", ~own_post,
+                            Message.rendered_text.notlike(NIMI_HEADER_LIKE))).all()
     return {r[0]: (r[1], r[2], r[3]) for r in rows}
 
 
@@ -510,8 +531,245 @@ def recent_webhook_posts(s: Session, days) -> list:
     for p, provider in rows:
         reused = list(s.scalars(select(RcaPostReuseLink.reused_result_id).where(RcaPostReuseLink.post_id == p.id)))
         out.append({"id": p.id, "result_id": p.result_id, "reply_external_id": p.reply_external_id,
-                    "reused_result_ids": reused, "provider": provider})
+                    "thread_external_id": p.thread_external_id, "reused_result_ids": reused, "provider": provider})
     return out
+
+
+# --- comments -------------------------------------------------------------------------------
+
+ATTACHABLE_OUTCOMES = ("rca", "not_applicable", "insufficient_context")
+
+
+def stored_update_times(s: Session, provider, external_ids: list) -> dict:
+    """external_id -> last_update_at of stored messages (top-level and thread replies), to spot edits."""
+    out = {}
+    if external_ids:
+        for model in (Message, ThreadMessage):
+            for ext, ts in s.execute(select(model.external_id, model.last_update_at)
+                                     .where(model.provider == provider, model.external_id.in_(external_ids))):
+                out[ext] = ts
+    return out
+
+
+POST_CLOCK_SKEW = timedelta(seconds=5)    # NIMI's clock (posted_at) vs the chat's (message created_at)
+
+
+def nimi_post_before(s: Session, thread_external_id, at) -> Optional[dict]:
+    """The latest NIMI post in a thread at or before `at` (any destination): its request and the results it
+    showed (its own and the reused ones). None if NIMI never posted in that thread before then."""
+    if not thread_external_id:
+        return None
+    post = s.scalars(select(RcaPost).where(RcaPost.thread_external_id == thread_external_id,
+                                           RcaPost.reply_external_id != "",
+                                           RcaPost.posted_at <= at + POST_CLOCK_SKEW)
+                     .order_by(RcaPost.posted_at.desc(), RcaPost.id.desc()).limit(1)).first()
+    if post is None:
+        return None
+    reused = s.scalars(select(RcaPostReuseLink.reused_result_id).where(RcaPostReuseLink.post_id == post.id))
+    results = ([post.result_id] if post.result_id else []) + sorted(set(reused) - {post.result_id})
+    return {"request_id": post.request_id, "result_ids": results}
+
+
+def request_for_thread(s: Session, channel_id, thread_external_id) -> Optional[dict]:
+    """The RCA request of the message that started a thread in a registered channel, with its latest usable
+    result (None if it has none yet)."""
+    if not channel_id or not thread_external_id:
+        return None
+    req_id = s.scalar(select(RcaRequest.id).join(Message, Message.id == RcaRequest.source_message_id)
+                      .where(Message.channel_id == channel_id, Message.thread_external_id == thread_external_id)
+                      .order_by(Message.created_at).limit(1))
+    if req_id is None:
+        return None
+    result_id = latest_attachable_result(s, req_id)
+    return {"request_id": req_id, "result_ids": [result_id] if result_id else []}
+
+
+def latest_attachable_result(s: Session, request_id) -> Optional[int]:
+    """The newest result of a request that a comment can be about (not an error or timeout)."""
+    return s.scalar(select(RcaResult.id).where(RcaResult.request_id == request_id,
+                                               RcaResult.outcome.in_(ATTACHABLE_OUTCOMES))
+                    .order_by(RcaResult.id.desc()).limit(1))
+
+
+def request_signature(s: Session, request_id) -> Optional[int]:
+    return s.scalar(select(RcaRequest.signature_id).where(RcaRequest.id == request_id)) if request_id else None
+
+
+def comment_for_message(s: Session, provider, message_external_id) -> Optional[RcaComment]:
+    return s.scalars(select(RcaComment).where(RcaComment.provider == provider,
+                                              RcaComment.message_external_id == message_external_id)).first()
+
+
+def add_comment(s: Session, result_ids=(), **fields) -> int:
+    comment = RcaComment(**fields)
+    s.add(comment)
+    s.flush()
+    link_comment(s, comment.id, result_ids)
+    return comment.id
+
+
+def link_comment(s: Session, comment_id, result_ids) -> None:
+    for rid in dict.fromkeys(result_ids):
+        s.execute(pg_insert(RcaCommentResult).values(comment_id=comment_id, result_id=rid).on_conflict_do_nothing())
+
+
+def update_comment(s: Session, comment_id, text_, flags) -> None:
+    s.execute(update(RcaComment).where(RcaComment.id == comment_id)
+              .values(text=text_, flags=flags, removed_at=None, updated_at=func.now()))
+
+
+def remove_comment(s: Session, comment_id) -> None:
+    s.execute(update(RcaComment).where(RcaComment.id == comment_id, RcaComment.removed_at.is_(None))
+              .values(removed_at=func.now(), updated_at=func.now()))
+
+
+def attach_request_comments(s: Session, request_id, result_id, given=()) -> int:
+    """Comments that belong to a request but to none of its results yet now belong to its new result, except
+    the ones the run was given as input (`given`): the RCA took those into account, so they mustn't stop its
+    reuse. What's left was written while the run was in progress. Returns how many were linked."""
+    has_result = select(RcaCommentResult.comment_id).where(RcaCommentResult.comment_id == RcaComment.id).exists()
+    ids = [cid for cid in s.scalars(select(RcaComment.id).where(RcaComment.request_id == request_id,
+                                                                RcaComment.removed_at.is_(None), ~has_result))
+           if cid not in set(given)]
+    for cid in ids:
+        link_comment(s, cid, [result_id])
+    return len(ids)
+
+
+def comments_for_input(s: Session, request_id, result_ids=()) -> list:
+    """Active comments for an RCA run, oldest first, as (comment, [result ids]): the request's own (written
+    before the run, or on its earlier results) and those on `result_ids` (earlier RCAs being re-analyzed)."""
+    linked = select(RcaCommentResult.comment_id).where(RcaCommentResult.result_id.in_(list(result_ids) or [-1]))
+    rows = s.scalars(select(RcaComment).where(RcaComment.removed_at.is_(None),
+                                              or_(RcaComment.request_id == request_id, RcaComment.id.in_(linked)))
+                     .order_by(RcaComment.created_at, RcaComment.id))
+    return [(c, comment_result_ids(s, c.id)) for c in rows]
+
+
+def other_comment_count(s: Session, signature_id, exclude_ids=()) -> int:
+    """Active, attached comments on RCAs of a signature, other than `exclude_ids` (for the input's pointer)."""
+    if not signature_id:
+        return 0
+    return s.scalar(select(func.count()).select_from(RcaComment).where(
+        RcaComment.signature_id == signature_id, RcaComment.removed_at.is_(None),
+        RcaComment.request_id.isnot(None), RcaComment.id.notin_(list(exclude_ids) or [-1])))
+
+
+def related_comments(s: Session, request_id, at, hours: int, terms=(), exclude_ids=(), limit: int = 10,
+                     signature_id=None) -> list:
+    """Active, attached comments of other requests that may concern this alert, newest first, as
+    (comment, [result ids], signature key): on this alert's signature (`signature_id`) at any age, written
+    within `hours` of `at` (the alert's time; 0 or no time = no window), or naming one of `terms` as a whole
+    word at any time. `terms` are plain names (letters, digits, `_ . -`; see comments.subject_terms)."""
+    conds = [RcaComment.text.op("~*")(r"\m" + re.sub(r"([.\-])", r"\\\1", t) + r"\M") for t in terms]
+    if signature_id:
+        conds.append(RcaComment.signature_id == signature_id)
+    if hours > 0 and at is not None:
+        conds.append(RcaComment.created_at.between(at - timedelta(hours=hours), at + timedelta(hours=hours)))
+    if not conds:
+        return []
+    rows = s.execute(select(RcaComment, Signature.signature_key)
+                     .outerjoin(Signature, Signature.id == RcaComment.signature_id)
+                     .where(RcaComment.removed_at.is_(None), RcaComment.request_id.isnot(None),
+                            RcaComment.request_id != request_id, RcaComment.id.notin_(list(exclude_ids) or [-1]),
+                            or_(*conds))
+                     .order_by(RcaComment.created_at.desc(), RcaComment.id.desc()).limit(limit)).all()
+    return [(c, comment_result_ids(s, c.id), key) for c, key in rows]
+
+
+def signature_key(s: Session, signature_id) -> Optional[str]:
+    return s.scalar(select(Signature.signature_key).where(Signature.id == signature_id)) if signature_id else None
+
+
+def record_verdicts(s: Session, result_id, rows: list) -> None:
+    """What the run that produced `result_id` concluded about each comment (comments.check_verdicts). Every
+    comment given in full has a row, which is also how linking tells them apart from later comments."""
+    for r in rows:
+        values = {k: r[k] for k in ("verdict", "relied_on", "evidence", "downgraded")}
+        s.execute(pg_insert(RcaCommentVerdict).values(comment_id=r["comment_id"], result_id=result_id, **values)
+                  .on_conflict_do_update(index_elements=["comment_id", "result_id"], set_=values))
+
+
+def relies_on_unverified_comment(s: Session, result_id) -> bool:
+    """The result's cause relies on a comment nobody could verify (as stored by record_verdicts)."""
+    return bool(s.scalar(select(RcaCommentVerdict.comment_id).where(
+        RcaCommentVerdict.result_id == result_id, RcaCommentVerdict.relied_on,
+        RcaCommentVerdict.verdict == "unverifiable").limit(1)))
+
+
+def verdicts_for_comment(s: Session, comment_id) -> list:
+    return list(s.scalars(select(RcaCommentVerdict).where(RcaCommentVerdict.comment_id == comment_id)
+                          .order_by(RcaCommentVerdict.result_id)))
+
+
+def get_comment(s: Session, comment_id) -> Optional[RcaComment]:
+    return s.get(RcaComment, comment_id)
+
+
+def comment_messages_for_citation(s: Session, ids, request: dict) -> dict:
+    """{comment id: chat message external id} for cited comments that can be linked: active, attached, and
+    written in chat with this request's provider. A comment on another alert counts too: runs are given those
+    (comments.input_context), and the cause may rest on one."""
+    if not ids:
+        return {}
+    rows = s.execute(select(RcaComment.id, RcaComment.message_external_id).where(
+        RcaComment.id.in_(list(ids)), RcaComment.removed_at.is_(None), RcaComment.source == "chat",
+        RcaComment.request_id.isnot(None), RcaComment.provider == request.get("provider"),
+        RcaComment.message_external_id.isnot(None)))
+    return {r.id: r.message_external_id for r in rows}
+
+
+def comment_result_ids(s: Session, comment_id) -> list:
+    return sorted(s.scalars(select(RcaCommentResult.result_id).where(RcaCommentResult.comment_id == comment_id)))
+
+
+def comments_for_request(s: Session, request_id) -> list:
+    """Comments that belong to a request or to any of its results (removed ones too), oldest first."""
+    on_results = select(RcaCommentResult.comment_id).join(RcaResult, RcaResult.id == RcaCommentResult.result_id) \
+        .where(RcaResult.request_id == request_id)
+    return list(s.scalars(select(RcaComment).where(or_(RcaComment.request_id == request_id,
+                                                       RcaComment.id.in_(on_results)))
+                          .order_by(RcaComment.created_at, RcaComment.id)))
+
+
+def list_comments(s: Session, signature_id=None, request_id=None, unattached=False, include_removed=False,
+                  limit=50) -> list:
+    """Newest first."""
+    q = select(RcaComment)
+    if signature_id is not None:
+        q = q.where(RcaComment.signature_id == signature_id)
+    if request_id is not None:
+        q = q.where(RcaComment.request_id == request_id)
+    if unattached:
+        q = q.where(RcaComment.request_id.is_(None))
+    if not include_removed:
+        q = q.where(RcaComment.removed_at.is_(None))
+    return list(s.scalars(q.order_by(RcaComment.created_at.desc(), RcaComment.id.desc()).limit(limit)))
+
+
+def attach_comment(s: Session, comment_id, request_id, signature_id, result_ids) -> None:
+    s.execute(update(RcaComment).where(RcaComment.id == comment_id)
+              .values(request_id=request_id, signature_id=signature_id, updated_at=func.now()))
+    link_comment(s, comment_id, result_ids)
+
+
+def set_comment_flags(s: Session, comment_id, flags) -> None:
+    s.execute(update(RcaComment).where(RcaComment.id == comment_id).values(flags=flags or None))
+
+
+def active_chat_comments(s: Session, provider, after, before, channel_id=None, threads=None) -> list:
+    """(id, message_external_id) of active chat comments created in (after, before): in a registered channel,
+    or (channel_id None) in the given threads. For finding comments whose message was deleted."""
+    q = select(RcaComment.id, RcaComment.message_external_id).where(
+        RcaComment.source == "chat", RcaComment.provider == provider, RcaComment.removed_at.is_(None),
+        RcaComment.created_at > after, RcaComment.created_at < before)
+    if channel_id is not None:
+        q = q.where(RcaComment.channel_id == channel_id)
+    elif threads:
+        q = q.where(RcaComment.thread_external_id.in_(list(threads)))
+    else:
+        return []
+    return [tuple(r) for r in s.execute(q)]
 
 
 def has_reactions(s: Session, provider, message_external_id) -> bool:

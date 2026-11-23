@@ -7,12 +7,12 @@ import logging
 
 from datetime import datetime, timezone
 
-from . import db, exclusions, pause, projects, redflags, scanner
+from . import comments, db, exclusions, pause, projects, redflags, scanner
 from .claude_cli import NEEDS_ADMIN, ClaudeUnavailable
 from .guardlog import denials_for_session
 from .parse import looks_resolved
 from .providers import get_provider
-from .rca import (SOURCE_LINE_MAX, earlier_label, find_refs, format_limit_notice, format_rca, format_reuse, run_rca,
+from .rca import (SOURCE_LINE_MAX, comment_refs, earlier_label, find_refs, format_limit_notice, format_rca, format_reuse, run_rca,
                   source_line, with_source)
 from .triage import triage
 
@@ -181,11 +181,28 @@ def run_request(settings, request_id: int) -> None:
         with db.session() as s:
             req = db.get_request(s, request_id)
             subj = db.subjects_for(s, request_id)
+            # Built now, not at triage: comments written while the request waited are included.
+            commented = db.reuse_candidates(s, req["signature_id"], db.now(s), settings.reuse_days, req["id"],
+                                            commented=True) if req["signature_id"] else []
+            decided, moved = comments.unreuse_commented(subj, commented)
+            if moved:       # commented on after triage reused it: analyze it now (never reuse a commented RCA)
+                db.set_subjects(s, request_id, decided)
+                s.flush()
+                subj = db.subjects_for(s, request_id)
+                log.info("request %s: re-analyzing %s (their reused RCA got a comment after triage)", request_id,
+                         moved[:5])
+            ctx = comments.input_context(s, settings, req, commented,
+                                         [x.subject for x in subj if x.decision == "new"])
         new_subjects = [x.subject for x in subj if x.decision == "new"] or ["*"]
         reused = [{"subject": x.subject, "rca_id": x.reused_result_id} for x in subj if x.decision == "reused"]
 
-        log.info("RCA start request=%s new=%s reused=%s", request_id, new_subjects[:5], len(reused))
-        result = run_rca(settings, req, new_subjects, reused)   # minutes: outside any transaction
+        log.info("RCA start request=%s new=%s reused=%s comments=%s related_comments=%s re-analyzing=%s", request_id,
+                 new_subjects[:5], len(reused), len(ctx["given"]), len(ctx["related"]),
+                 [c["result_id"] for c in commented])
+        if ctx["unavailable"]:
+            log.info("request %s: %d other comment(s) on this alert not available (history access is off)",
+                     request_id, ctx["unavailable"])
+        result = run_rca(settings, req, new_subjects, reused, ctx["lines"])   # minutes: outside any transaction
         if result.get("unavailable"):                           # usage limit / credit / auth: pause, retry later
             enter_pause(settings, result["unavailable"])
             with db.session() as s:
@@ -195,6 +212,14 @@ def run_request(settings, request_id: int) -> None:
 
         texts, chat_problems = {}, []
         with db.session() as s:
+            verdict_rows, comment_problems, unverified = [], [], False
+            if result.get("outcome") in db.ATTACHABLE_OUTCOMES:
+                items, comment_problems = comments.parse_verdicts(result.get("report"))
+                verdict_rows, problems, unverified = comments.check_verdicts(s, settings, req, ctx["given"], items,
+                                                                            ctx["related"])
+                comment_problems += problems
+                if unverified and result.get("confidence") == "high":
+                    result["confidence"] = "medium"     # the cause relies on a comment nobody could verify
             if result.get("outcome") == "rca" and req.get("provider"):
                 provider = get_provider(req["provider"], settings)
                 earlier = db.earlier_rcas(s, {r["rca_id"] for r in reused})
@@ -206,12 +231,16 @@ def run_request(settings, request_id: int) -> None:
                                       settings.post_max_chars - SOURCE_LINE_MAX,
                                       input_sensitive_types(req, result.get("sensitive_data") or []),
                                       settings.reply_disclaimer, source_line(provider, req) if dest == "webhook" else "",
-                                      earlier, citation_links(s, provider, result.get("report"), dest), registry,
-                                      req.get("source_title") or "", chat_problems)
+                                      earlier, citation_links(s, provider, result.get("report"), dest, req), registry,
+                                      req.get("source_title") or "", chat_problems, unverified,
+                                      source_message_id=req.get("source_message_id"))
                     texts[dest] = safe_reply(settings, req, text)
                 result["chat_text"] = texts.get("thread") or with_source_removed(texts)
             result_id = db.insert_result(s, request_id, result)
-            if result["outcome"] in ("rca", "not_applicable", "insufficient_context"):
+            if result["outcome"] in db.ATTACHABLE_OUTCOMES:
+                # comments the run was given don't stop its reuse; ones written during the run do
+                db.record_verdicts(s, result_id, verdict_rows)
+                db.attach_request_comments(s, request_id, result_id, ctx["given"])
                 final = "not_applicable" if result["outcome"] == "not_applicable" else "done"
                 db.transition(s, request_id, "running", final)
             else:
@@ -219,6 +248,8 @@ def run_request(settings, request_id: int) -> None:
                 db.transition(s, request_id, "running", nxt, skip_reason=result.get("error"))
         if chat_problems:
             _flag_chat(settings, req, chat_problems)
+        if comment_problems and result["outcome"] == "rca":
+            _flag_comments(settings, req, comment_problems)
         log.info("RCA %s request=%s result=%s cost=$%s %ss", result["outcome"], request_id, result_id,
                  result.get("cost_usd"), result.get("duration_s"))
 
@@ -239,6 +270,15 @@ def _flag_chat(settings, req: dict, problems: list) -> None:
     redflags.record(settings, "error", "low", "skill", f"Chat message for request {req['id']}: {summary[:200]}",
                     details={"request_id": req["id"], "reason": summary[:300]},
                     dedupe_key=f"chat:{req['id']}", **_flag_ids(req))
+
+
+def _flag_comments(settings, req: dict, problems: list) -> None:
+    """A low red flag when the skill's verdicts on people's comments were missing, malformed, or unproven."""
+    summary = "; ".join(dict.fromkeys(problems))
+    log.info("request %s: comment verdict problems: %s", req["id"], summary)
+    redflags.record(settings, "error", "low", "skill", f"Comment verdicts for request {req['id']}: {summary[:200]}",
+                    details={"request_id": req["id"], "reason": summary[:300]},
+                    dedupe_key=f"comment-verdicts:{req['id']}", **_flag_ids(req))
 
 
 def _flag_run(settings, req: dict, result: dict) -> None:
@@ -292,9 +332,10 @@ def with_source_removed(texts: dict) -> str:
     return "\n".join(l for i, l in enumerate(lines) if not (i in (1, 2, 3) and l.startswith("🔔 ")))
 
 
-def citation_links(s, provider, report: str, dest: str) -> dict:
+def citation_links(s, provider, report: str, dest: str, req: dict = None) -> dict:
     """Links for the citations in a report: cited bot messages -> the original message; cited earlier RCAs ->
-    their post in the same destination (else in the thread). Anything not found stays plain text."""
+    their post in the same destination (else in the thread); cited comments (attributions, `req` given) -> the
+    comment's chat message. Anything not found stays plain text."""
     msg_ids, rca_ids = find_refs(report)
     links = {}
     for mid, (ext, created, channel) in db.bot_messages_for_citation(s, msg_ids).items():
@@ -305,6 +346,9 @@ def citation_links(s, provider, report: str, dest: str) -> dict:
     links.update({("rca", rid): provider.message_link(ext) for rid, ext in posts.items() if ext})
     # readable link text if the skill used the ID as the label: the RCA's title and time, as in reuse replies
     links.update({("rca-label", rid): earlier_label(info) for rid, info in db.earlier_rcas(s, rca_ids).items()})
+    if req:
+        links.update({("comment", cid): provider.message_link(ext)
+                      for cid, ext in db.comment_messages_for_citation(s, comment_refs(report), req).items()})
     return links
 
 

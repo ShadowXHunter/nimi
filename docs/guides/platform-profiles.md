@@ -6,7 +6,10 @@ without code changes:
 - **log layouts**: how the platform's log lines look, so logs get a proper service, logger, title and
   signature;
 - **subject masks**: platform-specific item names to leave out of signatures;
-- **triage notes**: facts that help triage, shown only for messages they apply to.
+- **triage notes**: facts that help triage, shown only for messages they apply to;
+- **message notes**: facts about how a sender's messages are laid out, given to the RCA and triage.
+
+All profiles apply to all messages (see [Profiles are global](#profiles-are-global-not-per-project)).
 
 Profiles are data (patterns). Yours live in `parsers/local/`, which is git-ignored because it describes your
 platforms; `parsers/examples/example.yaml` is a documented sample that is **never loaded** (copy it to
@@ -57,6 +60,12 @@ triage_notes:
     note: >-
       "Stock Sync Reminder" asks the warehouse team to confirm a manual stock sync; it reports no system
       failure.
+
+message_notes:
+  - applies_to: {sender: ["Ops Notifier"]}
+    note: >-
+      Alerts from this notifier end with one block per matched series: the series in bold (a disk, queue
+      or host), then its current value on the next line.
 ```
 
 | Key | Meaning |
@@ -67,6 +76,7 @@ triage_notes:
 | `priority` | Optional integer, lower first (default 100). |
 | `subject_masks` | Regular expressions for item names (databases, tenants, …) to mask in signatures. |
 | `triage_notes` | `applies_to.text_contains` (required; any of, case-insensitive) and `note`. |
+| `message_notes` | `applies_to` with `sender` (display names) and/or `text_contains` (any of); every key given must match. And `note`. |
 
 The signature of a log is `log|<service>|<logger>|<error text with items masked>`.
 
@@ -75,6 +85,43 @@ The signature of a log is `log|<service>|<logger>|<error text with items masked>
 affected tables" or "this alert is a reminder, not a failure". Root causes and runbook knowledge belong
 in the project's repo docs, where the RCA skill finds them. The code limits on reuse (only offered
 candidates, never one rated 👎, the reuse window) always apply.
+
+**Message notes** are facts about how a sender's messages look or what they mean, given to the RCA (in its
+input context) and to triage, only for messages they apply to. NIMI renders messages faithfully and never
+guesses a sender's conventions: bold stays `**bold**`, and a card's label/value widget becomes `label: value`.
+What a sender means by its layout is yours to state here, per sender: two notifiers can send the same kind
+of alert in different layouts. Keep each note short and factual: each kind of note (triage notes, message notes) gets
+at most 2,000 characters per message, and a note that doesn't fit in what's left is skipped whole. Notes don't change
+parsing, so `reparse` is optional after a note-only change: until you run it, stored parses only show the
+old parser version.
+
+### Profiles are global, not per project
+
+The service loads every file in `parsers/local/` and merges them: a profile isn't tied to a project, a
+channel or a space, and its file name and `name:` are only labels. Every layout, mask and note applies to
+every message, as far as its own scope (`when:`, `applies_to`) allows. So a note scoped to
+`sender: ["Ops Notifier"]` reaches that notifier's alerts in every project, whatever file it is in.
+
+Put what several projects share in a file of its own, e.g. one note per notifier your teams use. A profile
+needs only `name`; the other keys are optional:
+
+```yaml
+# parsers/local/notifiers.yaml
+name: notifiers
+description: How the alert notifiers we use lay out their messages
+message_notes:
+  - applies_to: {sender: ["Ops Notifier"], text_contains: ["Grafana"]}
+    note: >-
+      Grafana alerts from this notifier end with one block per matched series: the series in bold, then
+      its current value on the next line.
+  - applies_to: {sender: ["Team Alerts Bot"]}
+    note: >-
+      Each alert lists the affected queues as "queue: depth" lines; depth is the number of waiting jobs.
+```
+
+If two notifiers post under the same display name with different layouts, tell them apart with
+`text_contains`. A note that is true for only one project's alerts needs a text scope too (e.g.
+`text_contains: ["[shop-prod]"]`): the file it is in doesn't limit it.
 
 ## Testing and applying a change
 
@@ -91,4 +138,5 @@ many messages `reparse` would change.
 
 A profile is validated when the service starts; an invalid one (unknown key, bad regex, missing group)
 stops it with the file and location. The parser version includes a hash of all profiles, so stored parses
-show which profile version produced them; run `reparse` after every profile change.
+show which profile version produced them; run `reparse` after every layout or mask change (after a
+note-only change it only updates that version).

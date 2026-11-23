@@ -17,6 +17,9 @@ layout matches fall back to the generic parser. Profile keys:
   triage_notes:                       # optional: guidance shown to triage for matching messages
     - applies_to: {text_contains: [...]}
       note: "…"
+  message_notes:                      # optional: facts about a sender's messages, given to the RCA (and triage)
+    - applies_to: {sender: [...], text_contains: [...]}   # at least one; all given must match
+      note: "…"                       # e.g. how this notifier lays out a matched series and its value
 
 Changing a profile changes PARSER_VERSION (it includes a hash of the profiles): run `reparse` afterwards.
 """
@@ -69,24 +72,55 @@ class Note:
 
 
 @dataclass
+class MessageNote:
+    profile: str
+    senders: tuple
+    text_contains: tuple
+    note: str
+
+    def applies(self, text: str, sender: Optional[str]) -> bool:
+        if self.senders and (sender or "").strip().lower() not in self.senders:
+            return False
+        return not self.text_contains or any(t in _plain(text) for t in self.text_contains)
+
+
+@dataclass
 class Profiles:
     layouts: list = field(default_factory=list)
     subject_masks: list = field(default_factory=list)
     notes: list = field(default_factory=list)
+    message_notes: list = field(default_factory=list)
     fingerprint: str = "none"
     files: list = field(default_factory=list)
 
+    def message_notes_for(self, text: str, sender: Optional[str]) -> list:
+        """Message notes that apply to this message (by sender display name and/or text, case-insensitive)."""
+        out, size = [], 0
+        for n in self.message_notes:
+            if n.applies(text, sender):
+                if size + len(n.note) > MAX_NOTES_CHARS:
+                    continue                    # too long for what's left; a shorter one may still fit
+                size += len(n.note)
+                out.append(n.note)
+        return out
+
     def notes_for(self, text: str) -> list:
         """Triage notes whose applies_to matches the message text (case-insensitive)."""
-        low = (text or "").lower()
+        low = _plain(text)
         out, size = [], 0
         for n in self.notes:
             if any(t in low for t in n.text_contains):
+                if size + len(n.note) > MAX_NOTES_CHARS:
+                    continue                    # too long for what's left; a shorter one may still fit
                 size += len(n.note)
-                if size > MAX_NOTES_CHARS:
-                    break
                 out.append(n.note)
         return out
+
+
+def _plain(text: Optional[str]) -> str:
+    """Message text for note scopes: lowercase, without Markdown bold (rendered text keeps a card's bold as
+    **x**), so a scope matches whether or not the sender made the words bold."""
+    return (text or "").replace("**", "").lower()
 
 
 def _strings(value, where: str) -> tuple:
@@ -97,6 +131,15 @@ def _strings(value, where: str) -> tuple:
     if not isinstance(value, list) or not all(isinstance(v, str) and v.strip() for v in value):
         raise ProfileError(f"{where}: expected a string or a list of strings")
     return tuple(v.strip().lower() for v in value)
+
+
+def _scope_texts(value, where: str) -> tuple:
+    """A note's text_contains, compared like the message text (_plain): a value copied from rendered text with
+    **bold** markers matches too."""
+    texts = tuple(_plain(v) for v in _strings(value, where))
+    if any(not t.strip() for t in texts):
+        raise ProfileError(f"{where}: a value is only asterisks (it would match every message)")
+    return texts
 
 
 def _compile(pattern, where: str) -> re.Pattern:
@@ -117,8 +160,9 @@ def _check_keys(obj, allowed: set, where: str) -> None:
 
 
 def parse_profile(doc, source: str, start_order: int = 0) -> tuple:
-    """(layouts, subject_masks, notes) from one profile document. Raises ProfileError with the location."""
-    _check_keys(doc, {"name", "description", "log_layouts", "subject_masks", "triage_notes"}, source)
+    """(layouts, subject_masks, notes, message_notes) from one profile document. Raises ProfileError with the
+    location."""
+    _check_keys(doc, {"name", "description", "log_layouts", "subject_masks", "triage_notes", "message_notes"}, source)
     name = doc.get("name")
     if not isinstance(name, str) or not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,40}", name):
         raise ProfileError(f"{source}: `name` must be a short lowercase identifier")
@@ -152,14 +196,28 @@ def parse_profile(doc, source: str, start_order: int = 0) -> tuple:
         _check_keys(raw, {"applies_to", "note"}, where)
         applies = raw.get("applies_to") or {}
         _check_keys(applies, {"text_contains"}, f"{where}.applies_to")
-        contains = _strings(applies.get("text_contains"), f"{where}.applies_to.text_contains")
+        contains = _scope_texts(applies.get("text_contains"), f"{where}.applies_to.text_contains")
         if not contains:
             raise ProfileError(f"{where}.applies_to.text_contains: required (notes are scoped to matching messages)")
         note = raw.get("note")
         if not isinstance(note, str) or not note.strip():
             raise ProfileError(f"{where}.note: required")
         notes.append(Note(name, contains, " ".join(note.split())))
-    return layouts, masks, notes
+    message_notes = []
+    for i, raw in enumerate(doc.get("message_notes") or []):
+        where = f"{source}: message_notes[{i}]"
+        _check_keys(raw, {"applies_to", "note"}, where)
+        applies = raw.get("applies_to") or {}
+        _check_keys(applies, {"sender", "text_contains"}, f"{where}.applies_to")
+        senders = _strings(applies.get("sender"), f"{where}.applies_to.sender")
+        contains = _scope_texts(applies.get("text_contains"), f"{where}.applies_to.text_contains")
+        if not senders and not contains:
+            raise ProfileError(f"{where}.applies_to: needs sender and/or text_contains (notes are scoped)")
+        note = raw.get("note")
+        if not isinstance(note, str) or not note.strip():
+            raise ProfileError(f"{where}.note: required")
+        message_notes.append(MessageNote(name, senders, contains, " ".join(note.split())))
+    return layouts, masks, notes, message_notes
 
 
 def load(directory: Path = None) -> Profiles:
@@ -173,13 +231,14 @@ def load(directory: Path = None) -> Profiles:
             doc = yaml.safe_load(data) or {}
         except yaml.YAMLError as e:
             raise ProfileError(f"{f.name}: invalid YAML: {e}") from None
-        layouts, masks, notes = parse_profile(doc, f.name, start_order=len(result.layouts))
+        layouts, masks, notes, message_notes = parse_profile(doc, f.name, start_order=len(result.layouts))
         if doc["name"] in names:
             raise ProfileError(f"{f.name}: duplicate profile name {doc['name']!r}")
         names.add(doc["name"])
         result.layouts += layouts
         result.subject_masks += masks
         result.notes += notes
+        result.message_notes += message_notes
     result.layouts.sort(key=lambda l: (l.priority, l.order))
     result.fingerprint = digest.hexdigest()[:8] if files else "none"
     return result

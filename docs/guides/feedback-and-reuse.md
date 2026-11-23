@@ -30,6 +30,7 @@ an earlier one **per subject** (a table, service, deployment or job the message 
 - only RCAs for messages with the **same signature**,
 - from the last `NIMI_REUSE_DAYS` (7) days,
 - never one rated 👎,
+- never one people [commented on](comments.md): the next firing gets a fresh RCA with the comments as input,
 - never one from an `rca --no-post` run (nobody saw it, and the reply couldn't link to it),
 - and only if it is the **same ongoing incident**: if history shows the subject recovered in between (an
   OK message, or a firing message that no longer listed it), it is a new incident and gets a fresh RCA.

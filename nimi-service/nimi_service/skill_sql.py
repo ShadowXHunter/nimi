@@ -2,7 +2,7 @@
 
 RCA runs reach it through the committed wrapper bin/nimi-sql, which the guard hook allows as a Bash
 command (rca.build_input tells the skill its path). It connects as the skill reader role
-(NIMI_DB_SKILL_USER), which can only SELECT the skill_messages and skill_rcas views; the database
+(NIMI_DB_SKILL_USER), which can only SELECT the skill_messages, skill_rcas and skill_comments views; the database
 enforces that, not this script. This
 script adds: one statement per call, a read-only transaction, a 5s statement timeout, row/size caps, and
 masking of secrets the scanner recognises. Unlike psql it has no meta-commands, so it can't run shell

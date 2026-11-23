@@ -13,6 +13,10 @@
 | **Request** | One RCA decision for one message (or manual text), with a status. |
 | **Triage** | The cheap, tool-less model call that decides reuse / new / not applicable. |
 | **Reuse** | Answering a repeat of an ongoing incident with an earlier RCA instead of a new one. |
+| **Comment** | What a person wrote to NIMI about an RCA, with `!nimi` in chat or with the CLI. An unverified claim; stops reuse of the RCA it is on. |
+| **Verdict** | What a later RCA concluded about a comment: confirmed, contradicted, unverifiable or not applicable. |
+| **Relied on** | A comment the RCA's cause rests on. Only such a comment appears in the chat message, credited as "a comment". |
+| **Re-analysis** | A fresh RCA for a subject whose earlier RCA isn't reused because people commented on it. |
 | **Exclusion rule** | A code rule that skips RCA for matching messages before triage. |
 | **Stale** | Older than `NIMI_STALE_HOURS` when NIMI can process it; gets no RCA. |
 | **Held** | A request with a critical secret in it, kept from all models until `release`. |
@@ -21,6 +25,6 @@
 | **Guard hook** | The PreToolUse hook that enforces what the skill may do. |
 | **Project** | A registered repository the skill may read. |
 | **Runbook** | On-call documentation in a project; hints for the skill, never proof. |
-| **Origin** | Whether the root cause is internal or upstream. |
+| **Origin** | Where the trigger is: internal (something we own is wrong or changed), upstream (a system we don't own, data, a provider), or undetermined. |
 | **Self-healing** | Whether a retry at some level re-runs the failed work automatically. |
 | **Skill reader** | The read-only Postgres role used by the skill's history SQL. |

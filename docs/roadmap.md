@@ -2,6 +2,9 @@
 
 ## Planned
 
+- **Interactive RCA** (phase 2 of [comments](design/comments.md)): on-call talks to NIMI in the thread,
+  NIMI asks for read-only checks it can't run itself and confirms the cause from the answers.
+- **A NIMI Chat app** for posting and `@NIMI` mentions (see the [design](design/comments.md#the-nimi-chat-app)).
 - **Read-only production data for the skill:** e.g. query results from a read replica or BI tool, through a
   guarded tool with query checks, row caps and timeouts, so RCAs can confirm hypotheses against real data.
 - **More chat providers:** Slack and Microsoft Teams, behind the existing provider interface.

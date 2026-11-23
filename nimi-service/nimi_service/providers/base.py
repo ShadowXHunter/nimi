@@ -35,6 +35,7 @@ class Message:
     reaction_summary: dict = field(default_factory=dict)   # {emoji_key: count}
     parse_text: str = ""                   # plain text for the parser (text + cards/blocks, no headers)
     title_hint: str = ""                   # the first meaningful line (e.g. card / header title)
+    body_text: str = ""                    # what the sender typed, in the provider's markup (no cards, no headers)
 
 
 @dataclass
@@ -81,6 +82,14 @@ class Provider(ABC):
         external ID). Optional: providers without incoming
         webhooks don't support NIMI_POST_TARGET=webhook."""
         raise NotImplementedError(f"provider {self.name!r} does not support posting to a webhook")
+
+    # --- comments ---
+    def comment_text(self, msg: Message) -> Optional[str]:
+        """The comment a person addressed to NIMI in this message (`!nimi` outside code; see comments.extract),
+        or None. Only human messages can be comments. Override if the platform needs a different trigger.
+        Whether it is NIMI's own post is checked by the caller (that needs the database)."""
+        from ..comments import extract
+        return extract(msg.body_text) if msg.sender_type == "human" else None
 
     # --- presentation ---
     @abstractmethod
