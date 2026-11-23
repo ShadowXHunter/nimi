@@ -658,6 +658,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/red-flags/" class="md-nav__link">
         
   
@@ -1453,6 +1481,95 @@
   
   
   
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../roadmap/" class="md-nav__link">
         
@@ -1628,7 +1745,7 @@ docker<span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </spa
 <p><code>NIMI_ENV=/dev/null</code> makes sure none of your real settings files are read.</p>
 <h2 id="reviewing-stored-data">Reviewing stored data<a class="headerlink" href="#reviewing-stored-data" title="Permanent link">&para;</a></h2>
 <p>To let someone (or an agent) review stored messages without the service's read-write credentials:</p>
-<div class="highlight"><pre><span></span><code>bash<span class="w"> </span>dev/review_access.sh<span class="w">            </span><span class="c1"># creates nimi_readonly: SELECT on review_messages and skill_rcas only; password in ~/.pgpass</span>
+<div class="highlight"><pre><span></span><code>bash<span class="w"> </span>dev/review_access.sh<span class="w">            </span><span class="c1"># creates nimi_readonly: SELECT on review_messages, skill_rcas and skill_comments only; password in ~/.pgpass</span>
 bash<span class="w"> </span>dev/review_access.sh<span class="w"> </span>revoke<span class="w">     </span><span class="c1"># removes it</span>
 </code></pre></div>
 <p>Re-run it after migrations that recreate views (dropping a view drops its grants).</p>

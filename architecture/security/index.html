@@ -658,6 +658,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/red-flags/" class="md-nav__link">
         
   
@@ -1464,6 +1492,95 @@
   
   
   
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../roadmap/" class="md-nav__link">
         
@@ -1610,7 +1727,7 @@ limits what any model can do regardless of what it is told.</p>
 <tbody>
 <tr>
 <td><strong>RCA skill</strong></td>
-<td>Read registered repos and its own folder; read-only <code>git</code>; plain-text web search; read-only SQL over two views.</td>
+<td>Read registered repos and its own folder; read-only <code>git</code>; plain-text web search; read-only SQL over three views (messages, RCAs, comments; no author names).</td>
 <td>Write or modify anything; run other commands or scripts; open URLs (including links in alerts); read the service code, config or credentials; use MCP servers.</td>
 </tr>
 <tr>
@@ -1646,7 +1763,7 @@ outside every path the guard allows.</p>
 </ul>
 <p>See <a href="../../guides/red-flags/">Red flags</a>.</p>
 <h2 id="least-privilege-database-access">Least-privilege database access<a class="headerlink" href="#least-privilege-database-access" title="Permanent link">&para;</a></h2>
-<p>Three roles: the service (owner), the skill reader (two views, read-only, 5s timeout), and an optional
+<p>Three roles: the service (owner), the skill reader (three views, read-only, 5s timeout), and an optional
 development review role (one view). Even unrestricted SQL from the skill can't read other tables, write,
 create objects, read server files or run longer than 5 seconds. See <a href="../data-model/#database-roles">Data model</a>.</p>
 <h2 id="claude-environment">Claude environment<a class="headerlink" href="#claude-environment" title="Permanent link">&para;</a></h2>

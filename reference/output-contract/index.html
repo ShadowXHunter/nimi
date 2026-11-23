@@ -658,6 +658,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/red-flags/" class="md-nav__link">
         
   
@@ -1382,6 +1410,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#verdicts-on-peoples-comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verdicts on people's comments
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1422,6 +1461,95 @@
     
   
     Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
   
 
     
@@ -1529,6 +1657,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#verdicts-on-peoples-comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verdicts on people's comments
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1594,10 +1733,13 @@ END_RCA_CHAT
   Do NOT, Permanent fixes, Also, Related as headings with bullets or numbered steps; each step starts with
   where it runs; commands as code blocks; possible results as sub-bullets under their step). The optional
   <code>context</code> line goes under the status line. The provider then converts the markup.</li>
-<li>Markdown headings inside values are removed, and sentences about earlier RCAs are removed everywhere
-  except Related.</li>
+<li>Markdown headings inside values are removed, and sentences that mention an earlier RCA without citing it
+  ("this agrees with RCA #2") are removed everywhere except Related. A sentence that cites one
+  (<code>[RCA #12](rca:12)</code>) is kept; a citation labelled only by its ID is relabelled with that RCA's title and time.</li>
 <li>Values are plain text with <code>`code`</code> and citations only. A single text where a list is expected is
-  treated as a one-item list; unknown keys are ignored.</li>
+  treated as a one-item list. Unknown keys (e.g. <code>dont</code>, <code>permanent_fixes</code>) and <code>related</code> entries that aren't
+  objects are ignored, and raise a low red flag.</li>
+<li>A <code>related</code> entry that points at the alert's own message is left out: on-call already sees the alert.</li>
 <li><strong>Length:</strong> the skill keeps the whole message under ~2,500 characters by editing (summarising, merging,
   leaving out the least useful items). NIMI never trims text. Only if a message still can't fit
   <code>NIMI_POST_MAX_CHARS</code>, whole sections are left out (Related, then Also, Permanent fixes, Steps to verify)
@@ -1610,13 +1752,62 @@ END_RCA_CHAT
 <h3 id="citations">Citations<a class="headerlink" href="#citations" title="Permanent link">&para;</a></h3>
 <p>The skill never writes URLs. Inside text values, to point at a stored message (e.g. the error log behind an alert) it writes
 <code>[label](msg:&lt;message_id&gt;)</code> with the <code>message_id</code> from <code>skill_messages</code>; for an earlier RCA,
-<code>[label](rca:&lt;result_id&gt;)</code>; for code, <code>[label](code:&lt;project key&gt;@&lt;commit&gt;/&lt;path in repo&gt;#L&lt;line&gt;)</code>.
+<code>[label](rca:&lt;result_id&gt;)</code>; for code, <code>[label](code:&lt;project key&gt;@&lt;commit&gt;/&lt;path in repo&gt;#L&lt;line&gt;)</code>; to
+attribute a claim to a person's comment, <code>[label](comment:&lt;comment_id&gt;)</code> (attribution only, never evidence).
 Before posting, the service checks each one: cited <strong>bot</strong> messages become links
-to the original message, cited RCAs link to their post (in the same destination when there is one), and
-cited code links to the file at that commit on the project's code host, and anything else — unknown IDs
+to the original message, cited RCAs link to their post (in the same destination when there is one),
+cited code links to the file at that commit on the project's code host, cited comments link to their chat
+message (active comments written in chat, on this alert or another one; a comment made with the CLI has no message and
+keeps its label), and anything else — unknown IDs
 or projects, human messages, unsafe paths, Markdown links to URLs — is reduced to its label. Absolute local
 paths of registered checkouts are rewritten to <code>&lt;project&gt;: &lt;path in repo&gt;</code>. The stored
 report keeps the citations, so it records which messages each RCA relied on.</p>
+<h3 id="verdicts-on-peoples-comments">Verdicts on people's comments<a class="headerlink" href="#verdicts-on-peoples-comments" title="Permanent link">&para;</a></h3>
+<p>If the input context gave the skill people's comments (see the <a href="../../design/comments/">design</a>), the
+chat block is followed by one JSON list between two marker lines: an entry for every comment given in full
+about this alert, for each comment on another alert that applies (or that the cause relies on), plus any
+background comment the cause relies on. Without comments, the block is left out.</p>
+<div class="highlight"><pre><span></span><code>RCA_COMMENTS
+[{"id": 12, "verdict": "confirmed", "relied_on": true, "evidence": ["code:shop@3f2a9c1/services/export.py#L88", "msg:4411"]},
+ {"id": 21, "verdict": "not_applicable", "relied_on": false, "evidence": ["tableD is in db_z"]}]
+END_RCA_COMMENTS
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>verdict</code></td>
+<td><code>confirmed</code>, <code>contradicted</code>, <code>unverifiable</code>, <code>not_applicable</code>.</td>
+</tr>
+<tr>
+<td><code>relied_on</code></td>
+<td><code>true</code> if the cause relies on the comment.</td>
+</tr>
+<tr>
+<td><code>evidence</code></td>
+<td>Citations NIMI can check (<code>msg:&lt;id&gt;</code>, <code>code:&lt;key&gt;@&lt;commit&gt;/&lt;path&gt;#L&lt;n&gt;</code>), each optionally with a short note, or short notes.</td>
+</tr>
+</tbody>
+</table>
+<p>NIMI checks the block in code and stores it (<code>rca_comment_verdicts</code>):</p>
+<ul>
+<li>A comment given in full without a verdict is recorded as <code>unverifiable</code>.</li>
+<li>Comments on other alerts that were given need no verdict (most don't apply); a verdict given is stored.</li>
+<li>IDs that weren't given and aren't active comments on this alert are ignored.</li>
+<li>A <code>confirmed</code> with no citation that checks out (a stored bot message or a file of a registered project,
+  anywhere in an evidence item) is recorded as <code>unverifiable</code> (<code>downgraded</code>). An earlier RCA (<code>rca:&lt;id&gt;</code>) never
+  counts: it is an earlier answer, not evidence.</li>
+<li>Comments on RCAs rated 👎 or from <code>--no-post</code> runs are still given in full to the next RCA.</li>
+<li>If the cause relies on a comment that ends up <code>unverifiable</code>, NIMI caps the RCA: confidence at most
+  <code>medium</code>, certainty at most <code>likely</code>, and the chat message says "The cause relies on a person's comment that
+  NIMI couldn't verify."</li>
+<li>Problems raise one low red flag per request.</li>
+</ul>
 <p>The output then ends with this block, as plain lines, one value per line, nothing after it:</p>
 <div class="highlight"><pre><span></span><code>RCA_FIELDS
 origin: internal | upstream | undetermined
@@ -1636,7 +1827,7 @@ sensitive_data: none | &lt;where:type, where:type, …&gt;
 <tbody>
 <tr>
 <td><code>origin</code></td>
-<td><code>internal</code> (our code, config, infra, deploy), <code>upstream</code> (source system, third-party API/SDK, data), <code>undetermined</code>.</td>
+<td>Where the trigger is, not who fixes it: <code>internal</code> (our code, config, infra, deploy is wrong or changed), <code>upstream</code> (a system we don't own, a third-party API/SDK, data; also when our code correctly rejects what it receives), <code>undetermined</code>.</td>
 </tr>
 <tr>
 <td><code>confidence</code></td>
@@ -1659,10 +1850,26 @@ the run was cut short. Invalid values are ignored. Each <code>sensitive_data</co
 <div class="highlight"><pre><span></span><code>RCA context (from NIMI):
 - Analyze only these subjects: &lt;subject&gt;, &lt;subject&gt;
 - Already analyzed, do not re-analyze: &lt;subject&gt; (earlier RCA #&lt;id&gt;)
+- Notes from this deployment about messages like this one (facts about their sender and format, from its platform profiles):
+  - &lt;note&gt;
+- Earlier RCA #&lt;id&gt; (&lt;date&gt;; subjects: …) is not reused: people commented on it. If it covered a subject you analyze, re-analyze that subject: …
+- Comments from people about this alert and its earlier RCAs (unverified claims: …):
+  - Comment #&lt;id&gt; (&lt;date&gt;, on RCA #&lt;id&gt; | on this alert, before this RCA): &lt;text&gt;
+- &lt;n&gt; older comment(s) on this alert didn't fit here: skill_comments, comment_id IN (…). …
+- More comments from people: on earlier firings of this alert, and on other alerts written within &lt;n&gt; h of this alert or naming one of its subjects. …:
+  - Comment #&lt;id&gt; (&lt;date&gt;, on RCA #&lt;id&gt;, an earlier firing of this alert | on RCA #&lt;id&gt; of another alert: &lt;signature key&gt;; "on its request" instead of "on RCA #&lt;id&gt;" when that run has no result yet): &lt;text&gt;
+- &lt;n&gt; more comment(s) didn't fit here: skill_comments, comment_id IN (…). …
+- &lt;n&gt; other comment(s) exist on earlier RCAs of this alert: skill_comments, signature_key = (SELECT signature_key FROM skill_messages WHERE message_id = &lt;id&gt;). …
 - History SQL: &lt;path&gt;/nimi-sql "&lt;one SQL statement&gt;"
+- This alert in history: skill_messages message_id = &lt;id&gt;, signature_key = '&lt;key&gt;'. … In SQL, match it with: signature_key = (SELECT signature_key FROM skill_messages WHERE message_id = &lt;id&gt;)
 ---
 &lt;the alert / log text&gt;
 </code></pre></div>
+<p>Only NIMI's own lines are instructions; the text of the comments is untrusted data, like the alert itself.</p>
+<p>"This alert in history" names the alert's own <code>skill_messages</code> row and signature key, so the skill counts
+earlier occurrences by that key and doesn't take the same check on another instance (a different key, often
+the same title) for this alert. The subquery form matters because a key can hold characters the history guard
+rejects in SQL (e.g. <code>&lt;url&gt;</code>, which the parser puts in place of links).</p>
 
 
 

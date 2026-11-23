@@ -658,6 +658,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/red-flags/" class="md-nav__link">
         
   
@@ -1481,6 +1509,95 @@
   
   
   
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../roadmap/" class="md-nav__link">
         
@@ -1713,6 +1830,18 @@ migrations (<code>nimi-service/db/migrations/</code>). Rows use internal numeric
 <td>Verdicts from reactions (<code>correct</code> / <code>partial</code> / <code>wrong</code>), soft-deleted when a reaction is removed.</td>
 </tr>
 <tr>
+<td><code>rca_comments</code></td>
+<td><a href="../../guides/comments/">Comments</a> people wrote with <code>!nimi</code> or the CLI: source (<code>chat</code> / <code>cli</code>), chat message and thread, request and signature (null while unattached), author, text (trigger removed, secrets masked, capped), flags, created / updated / removed times.</td>
+</tr>
+<tr>
+<td><code>rca_comment_results</code></td>
+<td>The RCA results a comment is about (several when its post showed several RCAs). An RCA with an active comment is never reused.</td>
+</tr>
+<tr>
+<td><code>rca_comment_verdicts</code></td>
+<td>What a later RCA concluded about a comment: <code>confirmed</code> / <code>contradicted</code> / <code>unverifiable</code> / <code>not_applicable</code>, evidence, <code>relied_on</code>, <code>downgraded</code> (a <code>confirmed</code> whose evidence didn't check out).</td>
+</tr>
+<tr>
 <td><code>rca_exclusions</code></td>
 <td><a href="../../guides/skipping-messages/">Exclusion rules</a>: match fields, reason, expiry, hit counts.</td>
 </tr>
@@ -1760,12 +1889,17 @@ migrations (<code>nimi-service/db/migrations/</code>). Rows use internal numeric
 <tr>
 <td><code>skill_messages</code></td>
 <td>the skill (<code>nimi_skill_reader</code>)</td>
-<td>Top-level <strong>bot</strong> messages from all channels with their parse and signature. No thread replies, human messages or raw payloads.</td>
+<td>Top-level <strong>bot</strong> messages from all channels with their parse and signature. No thread replies, human messages, raw payloads or NIMI's own posts.</td>
 </tr>
 <tr>
 <td><code>skill_rcas</code></td>
 <td>the skill (<code>nimi_skill_reader</code>), development reviews (<code>nimi_readonly</code>)</td>
 <td>Previous RCAs (outcomes <code>rca</code>, <code>not_applicable</code>, <code>insufficient_context</code>) with source message details, subjects and feedback counts.</td>
+</tr>
+<tr>
+<td><code>skill_comments</code></td>
+<td>the skill (<code>nimi_skill_reader</code>), development reviews (<code>nimi_readonly</code>)</td>
+<td>Active comments with their request, signature key, result IDs, time and text. No author names or IDs.</td>
 </tr>
 <tr>
 <td><code>review_messages</code></td>
@@ -1793,12 +1927,12 @@ migrations (<code>nimi-service/db/migrations/</code>). Rows use internal numeric
 <tr>
 <td><code>nimi_skill_reader</code></td>
 <td>the skill, via <code>nimi-sql</code></td>
-<td><code>SELECT</code> on <code>skill_messages</code> and <code>skill_rcas</code> only. Read-only sessions, 5s statement timeout, 5 connections. Granted by <code>db upgrade</code>.</td>
+<td><code>SELECT</code> on <code>skill_messages</code>, <code>skill_rcas</code> and <code>skill_comments</code> only. Read-only sessions, 5s statement timeout, 5 connections. Granted by <code>db upgrade</code>.</td>
 </tr>
 <tr>
 <td><code>nimi_readonly</code></td>
 <td>development reviews (optional, <code>dev/review_access.sh</code>)</td>
-<td><code>SELECT</code> on <code>review_messages</code> and <code>skill_rcas</code> only. Read-only, 30s timeout, 3 connections.</td>
+<td><code>SELECT</code> on <code>review_messages</code>, <code>skill_rcas</code> and <code>skill_comments</code> only. Read-only, 30s timeout, 3 connections.</td>
 </tr>
 </tbody>
 </table>

@@ -658,6 +658,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/red-flags/" class="md-nav__link">
         
   
@@ -1426,6 +1454,95 @@
   
   
   
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../roadmap/" class="md-nav__link">
         
@@ -1546,6 +1663,10 @@ interface in <code>providers/base.py</code>:</p>
 <td>Reply in a thread.</td>
 </tr>
 <tr>
+<td><code>comment_text(message)</code></td>
+<td>The comment a person addressed to NIMI (<code>!nimi</code> outside code), or none. Default in <code>base.py</code>, from <code>body_text</code>; override only if the platform needs a different trigger.</td>
+</tr>
+<tr>
 <td><code>message_link(message)</code>, <code>bold(text)</code>, <code>link(url)</code></td>
 <td>Links and markup for replies.</td>
 </tr>
@@ -1562,7 +1683,11 @@ see <a href="../../development/adding-a-provider/">Adding a provider</a>.</p>
 <li><strong>Auth:</strong> user OAuth token (created once by <code>gchat-login</code>, refreshed automatically; see
   <a href="../../getting-started/google-chat-access/">Google Chat access</a>); the service reads and posts as that user. Scopes: <code>chat.spaces.readonly</code>, <code>chat.messages.readonly</code>, <code>chat.messages.create</code>.</li>
 <li><strong>Messages:</strong> top-level messages and thread replies are told apart by the thread; sender <code>type</code> <code>BOT</code> /
-  <code>HUMAN</code> becomes <code>bot</code> / <code>human</code>. Cards are rendered into <code>rendered_text</code>.</li>
+  <code>HUMAN</code> becomes <code>bot</code> / <code>human</code>. Cards are rendered faithfully into <code>rendered_text</code>: bold stays <code>**bold**</code>,
+  and a <code>keyValue</code> widget (a label and its value, by the card schema) becomes <code>label: value</code>. NIMI doesn't
+  guess what a sender's layout means; a deployment states that per sender in its profiles'
+  <a href="../../guides/platform-profiles/">message notes</a>. Parsing reads plain text without these markers, so
+  signatures don't change.</li>
 <li><strong>Links:</strong> <code>https://chat.google.com/room/&lt;space&gt;/&lt;thread&gt;/&lt;message&gt;?cls=10</code>.</li>
 </ul>
 <h3 id="api-limits">API limits<a class="headerlink" href="#api-limits" title="Permanent link">&para;</a></h3>

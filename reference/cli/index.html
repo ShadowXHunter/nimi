@@ -658,6 +658,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/red-flags/" class="md-nav__link">
         
   
@@ -1348,6 +1376,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comments
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#red-flags" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1475,6 +1514,95 @@
   
   
   
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../roadmap/" class="md-nav__link">
         
@@ -1571,6 +1699,17 @@
     <span class="md-ellipsis">
       
         Exclusion rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comments
       
     </span>
   </a>
@@ -1764,6 +1903,36 @@
 </tbody>
 </table>
 <p>See <a href="../../guides/skipping-messages/">Messages that don't need an RCA</a>.</p>
+<h2 id="comments">Comments<a class="headerlink" href="#comments" title="Permanent link">&para;</a></h2>
+<p>People comment on an RCA with <code>!nimi</code> in chat; these commands do the same from the shell and manage
+comments. See <a href="../../guides/comments/">Comments on RCAs</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>comment request &lt;id&gt; "…"</code> / <code>comment result &lt;id&gt; "…"</code></td>
+<td>Add a comment on a request (its latest RCA, or the request until it has one) or on one RCA result. Secrets are masked, long text is cut.</td>
+</tr>
+<tr>
+<td><code>comments [list] [--request N] [--signature N] [--unattached] [--all]</code></td>
+<td>Comments, newest first: author, what they belong to, flags, text. <code>--all</code> includes removed ones.</td>
+</tr>
+<tr>
+<td><code>comments attach &lt;id&gt; &lt;result_id&gt;</code></td>
+<td>Attach a comment NIMI couldn't place (e.g. a top-level <code>!nimi</code> message) to an RCA result.</td>
+</tr>
+<tr>
+<td><code>comments remove &lt;id&gt;</code></td>
+<td>Remove a comment for good: editing the chat message won't bring it back.</td>
+</tr>
+</tbody>
+</table>
+<p><code>show</code> lists the comments on a request and on its results.</p>
 <h2 id="red-flags">Red flags<a class="headerlink" href="#red-flags" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

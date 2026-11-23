@@ -664,6 +664,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Writing a profile">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#profiles-are-global-not-per-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profiles are global, not per project
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -729,6 +746,34 @@
     
   
     Feedback and reuse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
   
 
     
@@ -1442,6 +1487,95 @@
   
   
   
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../roadmap/" class="md-nav__link">
         
@@ -1520,6 +1654,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Writing a profile">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#profiles-are-global-not-per-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profiles are global, not per project
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1557,8 +1708,10 @@ without code changes:</p>
 <li><strong>log layouts</strong>: how the platform's log lines look, so logs get a proper service, logger, title and
   signature;</li>
 <li><strong>subject masks</strong>: platform-specific item names to leave out of signatures;</li>
-<li><strong>triage notes</strong>: facts that help triage, shown only for messages they apply to.</li>
+<li><strong>triage notes</strong>: facts that help triage, shown only for messages they apply to;</li>
+<li><strong>message notes</strong>: facts about how a sender's messages are laid out, given to the RCA and triage.</li>
 </ul>
+<p>All profiles apply to all messages (see <a href="#profiles-are-global-not-per-project">Profiles are global</a>).</p>
 <p>Profiles are data (patterns). Yours live in <code>parsers/local/</code>, which is git-ignored because it describes your
 platforms; <code>parsers/examples/example.yaml</code> is a documented sample that is <strong>never loaded</strong> (copy it to
 <code>local/</code> to start). The service is the only thing that reads profiles; the RCA skill always works from the
@@ -1601,6 +1754,12 @@ layout matches get the generic parse.</p>
 <span class="w">    </span><span class="nt">note</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;-</span>
 <span class="w">      </span><span class="no">"Stock Sync Reminder" asks the warehouse team to confirm a manual stock sync; it reports no system</span>
 <span class="w">      </span><span class="no">failure.</span>
+
+<span class="nt">message_notes</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">applies_to</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">sender</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"Ops</span><span class="nv"> </span><span class="s">Notifier"</span><span class="p p-Indicator">]}</span>
+<span class="w">    </span><span class="nt">note</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;-</span>
+<span class="w">      </span><span class="no">Alerts from this notifier end with one block per matched series: the series in bold (a disk, queue</span>
+<span class="w">      </span><span class="no">or host), then its current value on the next line.</span>
 </code></pre></div>
 <table>
 <thead>
@@ -1634,6 +1793,10 @@ layout matches get the generic parse.</p>
 <td><code>triage_notes</code></td>
 <td><code>applies_to.text_contains</code> (required; any of, case-insensitive) and <code>note</code>.</td>
 </tr>
+<tr>
+<td><code>message_notes</code></td>
+<td><code>applies_to</code> with <code>sender</code> (display names) and/or <code>text_contains</code> (any of); every key given must match. And <code>note</code>.</td>
+</tr>
 </tbody>
 </table>
 <p>The signature of a log is <code>log|&lt;service&gt;|&lt;logger&gt;|&lt;error text with items masked&gt;</code>.</p>
@@ -1642,6 +1805,36 @@ layout matches get the generic parse.</p>
 affected tables" or "this alert is a reminder, not a failure". Root causes and runbook knowledge belong
 in the project's repo docs, where the RCA skill finds them. The code limits on reuse (only offered
 candidates, never one rated 👎, the reuse window) always apply.</p>
+<p><strong>Message notes</strong> are facts about how a sender's messages look or what they mean, given to the RCA (in its
+input context) and to triage, only for messages they apply to. NIMI renders messages faithfully and never
+guesses a sender's conventions: bold stays <code>**bold**</code>, and a card's label/value widget becomes <code>label: value</code>.
+What a sender means by its layout is yours to state here, per sender: two notifiers can send the same kind
+of alert in different layouts. Keep each note short and factual: each kind of note (triage notes, message notes) gets
+at most 2,000 characters per message, and a note that doesn't fit in what's left is skipped whole. Notes don't change
+parsing, so <code>reparse</code> is optional after a note-only change: until you run it, stored parses only show the
+old parser version.</p>
+<h3 id="profiles-are-global-not-per-project">Profiles are global, not per project<a class="headerlink" href="#profiles-are-global-not-per-project" title="Permanent link">&para;</a></h3>
+<p>The service loads every file in <code>parsers/local/</code> and merges them: a profile isn't tied to a project, a
+channel or a space, and its file name and <code>name:</code> are only labels. Every layout, mask and note applies to
+every message, as far as its own scope (<code>when:</code>, <code>applies_to</code>) allows. So a note scoped to
+<code>sender: ["Ops Notifier"]</code> reaches that notifier's alerts in every project, whatever file it is in.</p>
+<p>Put what several projects share in a file of its own, e.g. one note per notifier your teams use. A profile
+needs only <code>name</code>; the other keys are optional:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># parsers/local/notifiers.yaml</span>
+<span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">notifiers</span>
+<span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">How the alert notifiers we use lay out their messages</span>
+<span class="nt">message_notes</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">applies_to</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">sender</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"Ops</span><span class="nv"> </span><span class="s">Notifier"</span><span class="p p-Indicator">],</span><span class="nt"> text_contains</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"Grafana"</span><span class="p p-Indicator">]}</span>
+<span class="w">    </span><span class="nt">note</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;-</span>
+<span class="w">      </span><span class="no">Grafana alerts from this notifier end with one block per matched series: the series in bold, then</span>
+<span class="w">      </span><span class="no">its current value on the next line.</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">applies_to</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">sender</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"Team</span><span class="nv"> </span><span class="s">Alerts</span><span class="nv"> </span><span class="s">Bot"</span><span class="p p-Indicator">]}</span>
+<span class="w">    </span><span class="nt">note</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;-</span>
+<span class="w">      </span><span class="no">Each alert lists the affected queues as "queue: depth" lines; depth is the number of waiting jobs.</span>
+</code></pre></div>
+<p>If two notifiers post under the same display name with different layouts, tell them apart with
+<code>text_contains</code>. A note that is true for only one project's alerts needs a text scope too (e.g.
+<code>text_contains: ["[shop-prod]"]</code>): the file it is in doesn't limit it.</p>
 <h2 id="testing-and-applying-a-change">Testing and applying a change<a class="headerlink" href="#testing-and-applying-a-change" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>.venv/bin/python<span class="w"> </span>-m<span class="w"> </span>nimi_service<span class="w"> </span>parse-test<span class="w"> </span>--text<span class="w"> </span><span class="s2">"&lt;a log line or alert&gt;"</span><span class="w">     </span><span class="c1"># one message, plus matching notes</span>
 .venv/bin/python<span class="w"> </span>-m<span class="w"> </span>nimi_service<span class="w"> </span>parse-test<span class="w"> </span>--channel<span class="w"> </span>app-logs<span class="w"> </span>--kind<span class="w"> </span>other<span class="w">      </span><span class="c1"># stored messages still unmatched</span>
@@ -1653,7 +1846,8 @@ candidates, never one rated 👎, the reuse window) always apply.</p>
 many messages <code>reparse</code> would change.</p>
 <p>A profile is validated when the service starts; an invalid one (unknown key, bad regex, missing group)
 stops it with the file and location. The parser version includes a hash of all profiles, so stored parses
-show which profile version produced them; run <code>reparse</code> after every profile change.</p>
+show which profile version produced them; run <code>reparse</code> after every layout or mask change (after a
+note-only change it only updates that version).</p>
 
 
 

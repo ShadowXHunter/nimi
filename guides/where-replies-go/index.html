@@ -777,6 +777,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../red-flags/" class="md-nav__link">
         
   
@@ -1470,6 +1498,95 @@
   
   
   
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../roadmap/" class="md-nav__link">
         
@@ -1646,9 +1763,10 @@ Related
 Rate it: 👍 correct · 🤔 partly right · 👎 wrong
 </code></pre></div>
 <ul>
-<li><strong>Reuse</strong> (same ongoing incident as an earlier RCA): "Same as an earlier RCA" with, per earlier RCA, the
-  subjects it covers, a link to it (labelled by its title and time, never a database ID) and its TL;DR. <strong>Partly reused</strong> RCAs show the same lines under
-  "Already analyzed:".</li>
+<li><strong>Reuse</strong> (same ongoing incident as an earlier RCA): "Same as an earlier RCA" (or "Same as earlier RCAs" where there
+  are multiple) with, per earlier RCA, the subjects it covers, a link to it (labelled by its title and time, never a
+  database ID) and its TL;DR, dated ("TL;DR (Oct 19):") because its numbers are from that RCA, not from the new alert.
+  <strong>Partly reused</strong> RCAs show the same lines under "Already analyzed:".</li>
 <li><strong>Related</strong> lists up to 3 messages from the history (e.g. the error log in another channel that explains
   an alert) or earlier RCAs, linked to the original messages. The skill cites them by ID and NIMI makes the
   links, so only real bot messages and real RCAs become links

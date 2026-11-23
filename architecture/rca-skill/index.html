@@ -658,6 +658,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/red-flags/" class="md-nav__link">
         
   
@@ -1442,6 +1470,95 @@
   
   
   
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../roadmap/" class="md-nav__link">
         
@@ -1602,16 +1719,20 @@ service.</p>
    unverified, their age is checked, contradictions are reported, actions are never performed.</li>
 <li><strong>Check history</strong> (service runs): related messages around the incident in all channels, <strong>each affected
    item searched by name in every channel over the last ~7 days</strong> (errors behind an alert often happen at
-   another time, e.g. a daily job), recurrence of the signature, and previous RCAs with their feedback.</li>
+   another time, e.g. a daily job), recurrence of the signature, and previous RCAs with their feedback.
+   <strong>Weigh comments</strong> people wrote about this alert, its earlier firings and other alerts around it
+   (given in the input, or found in <code>skill_comments</code>): unverified claims, checked against code and data,
+   never acted on (<a href="../../guides/comments/">Comments</a>).</li>
 <li><strong>Orient, locate the failing code, check config and recent changes</strong> (read-only git).</li>
 <li><strong>Upstream / downstream</strong> one hop each way; web search in plain text when a third-party error needs it.</li>
 <li><strong>Timeline in UTC</strong> with explicit offset conversion; distinguish trigger from symptoms; weigh
    <strong>internal vs upstream</strong> causes; check <strong>retries at every level</strong> to decide whether it <strong>self-heals</strong>.</li>
-<li><strong>Report</strong> with evidence for every claim, a confidence level and suggested next steps (stored).</li>
+<li><strong>Report</strong> with evidence for every claim, a verdict line per comment, suggested next steps and a confidence
+   level (stored).</li>
 <li><strong>Chat message</strong>: the one message on-call sees, in simple words (TL;DR, cause, read-only steps to verify it, what
     to do now and not to do, permanent fixes by owner, missing docs/monitoring, related messages cited by
-    ID so the service can link them), followed by the
-    <code>RCA_FIELDS</code> block (<a href="../../reference/output-contract/">output contract</a>).</li>
+    ID so the service can link them), followed by an <code>RCA_COMMENTS</code> block with a verdict per comment (when
+    comments were given) and the <code>RCA_FIELDS</code> block (<a href="../../reference/output-contract/">output contract</a>).</li>
 </ol>
 <h2 id="what-the-guard-allows">What the guard allows<a class="headerlink" href="#what-the-guard-allows" title="Permanent link">&para;</a></h2>
 <table>
@@ -1654,14 +1775,21 @@ when it happens in a service run.</p>
 block at the top of the input:</p>
 <div class="highlight"><pre><span></span><code>RCA context (from NIMI):
 - Analyze only these subjects: orders.payments
+- Notes from this deployment about messages like this one (facts about their sender and format, from its platform profiles):
+  - Alerts from this notifier end with one block per matched series: the series in bold, then its value.
+- Comments from people about this alert and its earlier RCAs (unverified claims: …):
+  - Comment #12 (Oct 25, on RCA #1): the payments export was replaced after listing.
 - History SQL: /…/nimi-service/bin/nimi-sql "&lt;one SQL statement&gt;"
+- This alert in history: skill_messages message_id = 4182, signature_key = 'alert|[shop-prod] disk usage high'. … In SQL, match it with: signature_key = (SELECT signature_key FROM skill_messages WHERE message_id = 4182)
 ---
 &lt;the alert / log text&gt;
 </code></pre></div>
+<p>Notes and comment lines appear only when they apply; the full list of lines is in the
+<a href="../../reference/output-contract/">output contract</a>.</p>
 <p>The <strong>skill writes the SQL</strong>; the service only provides access:</p>
 <ul>
-<li><strong>Database boundary</strong>: it connects as <code>nimi_skill_reader</code>, which can read only <code>skill_messages</code> and
-  <code>skill_rcas</code> (read-only sessions, 5s timeout).</li>
+<li><strong>Database boundary</strong>: it connects as <code>nimi_skill_reader</code>, which can read only <code>skill_messages</code>,
+  <code>skill_rcas</code> and <code>skill_comments</code> (read-only sessions, 5s timeout).</li>
 <li><strong>The command</strong> runs one statement in a read-only transaction, returns at most 100 rows and 4000
   characters per value, masks recognized secrets, and has no psql meta-commands (no shell, no file output).</li>
 <li><strong>Credentials</strong>: per run, the reader's password goes into a private temporary file (deleted afterwards);

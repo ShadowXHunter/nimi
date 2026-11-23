@@ -658,6 +658,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/red-flags/" class="md-nav__link">
         
   
@@ -1431,6 +1459,95 @@
   
   
   
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../roadmap/" class="md-nav__link">
         
@@ -1601,7 +1718,12 @@ everything, and talks to chat.</p>
 <tr>
 <td>Feedback</td>
 <td><code>reactions.py</code></td>
-<td>Turns 👍 / 🤔 / 👎 on replies into feedback.</td>
+<td>Turns 👍 / 🤔 / 👎 on replies into feedback, and keeps edited or deleted comments in sync.</td>
+</tr>
+<tr>
+<td>Comments</td>
+<td><code>comments.py</code></td>
+<td>Stores <code>!nimi</code> <a href="../../guides/comments/">comments</a>, attaches them to RCAs, gives them to the next RCA and checks its verdicts.</td>
 </tr>
 <tr>
 <td>Safety</td>
@@ -1611,7 +1733,7 @@ everything, and talks to chat.</p>
 <tr>
 <td>History SQL</td>
 <td><code>skill_sql.py</code>, <code>bin/nimi-sql</code></td>
-<td>Read-only SQL for the skill over two views.</td>
+<td>Read-only SQL for the skill over three views.</td>
 </tr>
 <tr>
 <td>The skill</td>

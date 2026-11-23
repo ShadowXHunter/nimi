@@ -658,6 +658,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/red-flags/" class="md-nav__link">
         
   
@@ -1365,6 +1393,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comments
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#claude" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1449,6 +1488,95 @@
     
   
     Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/comments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comments on RCAs
   
 
     
@@ -1560,6 +1688,17 @@
     <span class="md-ellipsis">
       
         Triage and RCA
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comments
       
     </span>
   </a>
@@ -1790,6 +1929,39 @@ where settings are read from. Secret settings are masked by <code>python -m nimi
 </tr>
 </tbody>
 </table>
+<h2 id="comments">Comments<a class="headerlink" href="#comments" title="Permanent link">&para;</a></h2>
+<p>People comment on an RCA with <code>!nimi</code> in chat (see <a href="../../guides/comments/">Comments on RCAs</a>).</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NIMI_COMMENT_MAX_CHARS</code></td>
+<td><code>1000</code></td>
+<td>Longer comments are cut (after secrets are masked) and flagged.</td>
+</tr>
+<tr>
+<td><code>NIMI_COMMENT_AUTHORS</code></td>
+<td>anyone</td>
+<td>Comma-separated chat user IDs (e.g. <code>users/123</code>) whose comments are stored; others are ignored.</td>
+</tr>
+<tr>
+<td><code>NIMI_COMMENT_INPUT_MAX_CHARS</code></td>
+<td><code>8000</code></td>
+<td>Safety limit on comment text given in full to one RCA run. Beyond it, the oldest comments are only pointed to (a low red flag when this alert's own comments don't fit).</td>
+</tr>
+<tr>
+<td><code>NIMI_RELATED_COMMENT_HOURS</code></td>
+<td><code>6</code></td>
+<td>Comments on other alerts written within this many hours of an alert (before or after) are given to its RCA run, marked as about another alert. <code>0</code> turns the time match off; comments that name one of the run's subjects are still given. See <a href="../../guides/comments/#comments-on-other-alerts">comments</a>.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="claude">Claude<a class="headerlink" href="#claude" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1860,7 +2032,7 @@ where settings are read from. Secret settings are masked by <code>python -m nimi
 <tr>
 <td><code>NIMI_POST_MAX_CHARS</code></td>
 <td><code>4000</code></td>
-<td>Maximum reply length (the report body is truncated; notes and the feedback line are kept).</td>
+<td>Maximum reply length. A reply that doesn't fit loses whole optional sections (related, also, fixes, verify, in that order) and says it was shortened; the full report is stored.</td>
 </tr>
 <tr>
 <td><code>NIMI_REPLY_DISCLAIMER</code></td>
